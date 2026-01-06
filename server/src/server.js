@@ -3,6 +3,12 @@ import cors from 'cors'
 import helmet from 'helmet'
 import dotenv from 'dotenv'
 import { connectDB } from './config/database.js'
+import { errorHandler, notFound } from './middleware/errorHandler.js'
+
+// Import routes
+import authRoutes from './routes/authRoutes.js'
+import leaveRoutes from './routes/leaveRoutes.js'
+import testRoutes from './routes/testRoutes.js'
 
 dotenv.config()
 
@@ -22,22 +28,26 @@ connectDB()
 
 // Health Check Route
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ message: 'Server is running' })
-})
-
-// Routes will be added here
-
-// Error Handling Middleware
-app.use((err, req, res, next) => {
-  console.error(err.stack)
-  res.status(err.status || 500).json({
-    message: err.message || 'Internal Server Error',
-    status: err.status || 500
+  res.status(200).json({ 
+    success: true,
+    message: 'Server is running',
+    timestamp: new Date().toISOString()
   })
 })
+
+// API Routes
+app.use('/api/auth', authRoutes)
+app.use('/api/leave', leaveRoutes)
+app.use('/api/test', testRoutes)
+
+// 404 Handler
+app.use(notFound)
+
+// Global Error Handler
+app.use(errorHandler)
 
 const PORT = process.env.PORT || 5000
 
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+  console.log(`✅ Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`)
 })

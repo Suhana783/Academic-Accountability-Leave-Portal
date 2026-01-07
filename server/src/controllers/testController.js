@@ -1,7 +1,9 @@
 import Test from '../models/Test.js'
 import Leave from '../models/Leave.js'
+import TestResult from '../models/TestResult.js'
 import { successResponse, errorResponse } from '../utils/responseHelper.js'
 import { asyncHandler } from '../middleware/errorHandler.js'
+import evaluationService from '../services/evaluationService.js'
 
 // @desc    Create test for a leave request (Admin)
 // @route   POST /api/test
@@ -243,5 +245,141 @@ export const getMyTests = asyncHandler(async (req, res) => {
   successResponse(res, 200, 'Tests retrieved successfully', {
     count: tests.length,
     tests
+  })
+})
+
+// ============================================
+// TEST SUBMISSION AND EVALUATION CONTROLLERS
+// ============================================
+
+// @desc    Submit test (Student)
+// @route   POST /api/test/:id/submit
+// @access  Private (Student)
+export const submitTest = asyncHandler(async (req, res) => {
+  const testId = req.params.id
+  const studentId = req.user._id
+  const { mcqAnswers, codingAnswers, timeTaken } = req.body
+
+  // Validate submission data
+  if (!mcqAnswers && !codingAnswers) {
+    return errorResponse(res, 400, 'Please provide at least one answer (MCQ or Coding)')
+  }
+
+  // Validate mcqAnswers format
+  if (mcqAnswers && !Array.isArray(mcqAnswers)) {
+    return errorResponse(res, 400, 'MCQ answers must be an array')
+  }
+
+  // Validate codingAnswers format
+  if (codingAnswers && !Array.isArray(codingAnswers)) {
+    return errorResponse(res, 400, 'Coding answers must be an array')
+  }
+
+  // Prepare submission object
+  const submission = {
+    mcqAnswers: mcqAnswers || [],
+    codingAnswers: codingAnswers || [],
+    timeTaken: timeTaken || 0
+  }
+
+  try {
+    // Process submission through evaluation service
+    const result = await evaluationService.completeSubmission(
+      testId,
+      studentId,
+      submission
+    )
+
+    successResponse(res, 201, result.message, {
+      testResult: result.testResult,
+      leaveStatus: result.leaveStatus
+    })
+  } catch (error) {
+    return errorResponse(res, 400, error.message)
+  }
+})
+
+// @desc    Get test result (Student/Admin)
+// @route   GET /api/test/:id/result
+// @access  Private
+export const getTestResult = asyncHandler(async (req, res) => {
+  const testId = req.params.id
+
+  let result
+
+  if (req.user.role === 'student') {
+    // Students can only see their own results
+    result = await evaluationService.getTestResult(testId, req.user._id)
+  } else {
+    // Admins can see any result
+    result = await TestResult.findOne({ test: testId }).populate([
+      { path: 'test', select: 'title description totalMarks passPercentage' },
+      { path: 'student', select: 'name email department' },
+      { path: 'leave', select: 'startDate endDate status reason' }
+    ])
+  }
+
+  if (!result) {
+    return errorResponse(res, 404, 'Test result not found')
+  }
+
+  successResponse(res, 200, 'Test result retrieved successfully', { result })
+})
+
+// @desc    Get all test results for current student
+// @route   GET /api/test/results/my-results
+// @access  Private (Student)
+export const getMyResults = asyncHandler(async (req, res) => {
+  const results = await evaluationService.getStudentResults(req.user._id)
+
+  successResponse(res, 200, 'Your test results retrieved successfully', {
+    count: results.length,
+    results
+  })
+})
+
+// @desc    Get student statistics
+// @route   GET /api/test/statistics/me
+// @access  Private (Student)
+export const getMyStatistics = asyncHandler(async (req, res) => {
+  const statistics = await evaluationService.getStudentStatistics(req.user._id)
+
+  successResponse(res, 200, 'Statistics retrieved successfully', { statistics })
+})
+
+// @desc    Get all test results (Admin)
+// @route   GET /api/test/results/all
+// @access  Private (Admin)
+export const getAllResults = asyncHandler(async (req, res) => {
+  const results = await TestResult.find()
+    .populate([
+      { path: 'test', select: 'title description totalMarks passPercentage' },
+      { path: 'student', select: 'name email department' },
+      { path: 'leave', select: 'startDate endDate status reason' }
+    ])
+    .sort('-submittedAt')
+
+  successResponse(res, 200, 'All test results retrieved successfully', {
+    count: results.length,
+    results
+  })
+})
+
+// @desc    Get results by student ID (Admin)
+// @route   GET /api/test/results/student/:studentId
+// @access  Private (Admin)
+export const getResultsByStudent = asyncHandler(async (req, res) => {
+  const results = await evaluationService.getStudentResults(req.params.studentId)
+
+  if (results.length === 0) {
+    return errorResponse(res, 404, 'No results found for this student')
+  }
+
+  const statistics = await evaluationService.getStudentStatistics(req.params.studentId)
+
+  successResponse(res, 200, 'Student results retrieved successfully', {
+    count: results.length,
+    results,
+    statistics
   })
 })

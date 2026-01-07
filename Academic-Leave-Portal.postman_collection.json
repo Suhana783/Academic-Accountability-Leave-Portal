@@ -441,6 +441,184 @@
             }
           },
           "response": []
+        },
+        {
+          "name": "Submit Test (Student)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mcqAnswers\": [\n    {\n      \"questionIndex\": 0,\n      \"selectedAnswer\": 2\n    },\n    {\n      \"questionIndex\": 1,\n      \"selectedAnswer\": 0\n    }\n  ],\n  \"codingAnswers\": [\n    {\n      \"questionIndex\": 0,\n      \"submittedCode\": \"function add(a, b) { return a + b; }\",\n      \"submittedOutput\": \"5\\n10\\n15\"\n    }\n  ],\n  \"timeTaken\": 1800\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/api/test/:id/submit",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "test",
+                ":id",
+                "submit"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "test_id_here"
+                }
+              ]
+            },
+            "description": "Submit test answers for evaluation. MCQ answers require questionIndex and selectedAnswer. Coding answers require questionIndex, submittedCode, and submittedOutput (outputs separated by newlines)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Test Result",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/test/:id/result",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "test",
+                ":id",
+                "result"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "test_id_here"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Test Results (Student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/test/results/my-results",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "test",
+                "results",
+                "my-results"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Statistics (Student)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/test/statistics/me",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "test",
+                "statistics",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Test Results (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/test/results/all",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "test",
+                "results",
+                "all"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Student Results (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{AUTH_TOKEN}}"
+              }
+            ],
+            "url": {
+              "raw": "{{BASE_URL}}/api/test/results/student/:studentId",
+              "host": [
+                "{{BASE_URL}}"
+              ],
+              "path": [
+                "api",
+                "test",
+                "results",
+                "student",
+                ":studentId"
+              ],
+              "variable": [
+                {
+                  "key": "studentId",
+                  "value": "student_id_here"
+                }
+              ]
+            }
+          },
+          "response": []
         }
       ]
     }

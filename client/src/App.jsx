@@ -1,11 +1,56 @@
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import Layout from './components/Layout'
+import ProtectedRoute from './components/ProtectedRoute'
+
+// Pages
+import LoginPage from './pages/LoginPage'
+import StudentDashboard from './pages/StudentDashboard'
+import ApplyLeavePage from './pages/ApplyLeavePage'
+import MyLeavesPage from './pages/MyLeavesPage'
+import TakeTestPage from './pages/TakeTestPage'
+import TestResultPage from './pages/TestResultPage'
+import MyResultsPage from './pages/MyResultsPage'
+import LeaveDetailPage from './pages/LeaveDetailPage'
+import AdminDashboard from './pages/AdminDashboard'
+import LeaveReviewPage from './pages/LeaveReviewPage'
+import AdminResultsPage from './pages/AdminResultsPage'
+import AddStudentPage from './pages/AddStudentPage'
+import AddAdminPage from './pages/AddAdminPage'
 
 function App() {
   return (
     <Router>
-      <Routes>
-        {/* Routes to be added */}
-      </Routes>
+      <AuthProvider>
+        <Layout>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+
+            {/* Student routes */}
+            <Route element={<ProtectedRoute roles={['student']} />}>
+              <Route path="/student" element={<StudentDashboard />} />
+              <Route path="/apply-leave" element={<ApplyLeavePage />} />
+              <Route path="/my-leaves" element={<MyLeavesPage />} />
+              <Route path="/leave/:id" element={<LeaveDetailPage />} />
+              <Route path="/test/:id" element={<TakeTestPage />} />
+              <Route path="/test/:id/result" element={<TestResultPage />} />
+              <Route path="/my-results" element={<MyResultsPage />} />
+            </Route>
+
+            {/* Admin routes */}
+            <Route element={<ProtectedRoute roles={['admin']} />}>
+              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/leaves/:id" element={<LeaveReviewPage />} />
+              <Route path="/admin/results" element={<AdminResultsPage />} />
+              <Route path="/admin/add-student" element={<AddStudentPage />} />
+              <Route path="/admin/add-admin" element={<AddAdminPage />} />
+            </Route>
+
+            <Route path="/" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Layout>
+      </AuthProvider>
     </Router>
   )
 }

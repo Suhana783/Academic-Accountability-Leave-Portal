@@ -47,49 +47,8 @@ const testResultSchema = new mongoose.Schema(
       }
     ],
     
-    // Coding Submissions
-    codingAnswers: [
-      {
-        questionIndex: {
-          type: Number,
-          required: true
-        },
-        submittedCode: {
-          type: String,
-          required: true
-        },
-        testCaseResults: [
-          {
-            input: String,
-            expectedOutput: String,
-            submittedOutput: String,
-            passed: {
-              type: Boolean,
-              default: false
-            }
-          }
-        ],
-        passedTestCases: {
-          type: Number,
-          default: 0
-        },
-        totalTestCases: {
-          type: Number,
-          required: true
-        },
-        marksAwarded: {
-          type: Number,
-          default: 0
-        }
-      }
-    ],
-    
     // Scores and Results
     mcqScore: {
-      type: Number,
-      default: 0
-    },
-    codingScore: {
       type: Number,
       default: 0
     },

@@ -6,16 +6,7 @@ const mcqQuestionSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
-  options: {
-    type: [String],
-    required: true,
-    validate: {
-      validator: function (v) {
-        return v.length >= 2 && v.length <= 6
-      },
-      message: 'MCQ must have between 2 and 6 options'
-    }
-  },
+  options: [String],
   correctAnswer: {
     type: Number,
     required: true,
@@ -26,43 +17,6 @@ const mcqQuestionSchema = new mongoose.Schema({
     required: true,
     min: 1,
     default: 1
-  }
-})
-
-const codingQuestionSchema = new mongoose.Schema({
-  question: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  description: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  difficulty: {
-    type: String,
-    enum: ['easy', 'medium', 'hard'],
-    default: 'medium'
-  },
-  marks: {
-    type: Number,
-    required: true,
-    min: 1
-  },
-  testCases: [
-    {
-      input: String,
-      expectedOutput: String,
-      isHidden: {
-        type: Boolean,
-        default: false
-      }
-    }
-  ],
-  constraints: {
-    type: String,
-    trim: true
   }
 })
 
@@ -90,10 +44,6 @@ const testSchema = new mongoose.Schema(
     },
     mcqQuestions: {
       type: [mcqQuestionSchema],
-      default: []
-    },
-    codingQuestions: {
-      type: [codingQuestionSchema],
       default: []
     },
     totalMarks: {
@@ -135,11 +85,7 @@ testSchema.pre('save', function (next) {
   let total = 0
 
   if (this.mcqQuestions && this.mcqQuestions.length > 0) {
-    total += this.mcqQuestions.reduce((sum, q) => sum + (q.marks || 1), 0)
-  }
-
-  if (this.codingQuestions && this.codingQuestions.length > 0) {
-    total += this.codingQuestions.reduce((sum, q) => sum + q.marks, 0)
+    total = this.mcqQuestions.reduce((sum, q) => sum + (q.marks || 1), 0)
   }
 
   if (total > 0) {

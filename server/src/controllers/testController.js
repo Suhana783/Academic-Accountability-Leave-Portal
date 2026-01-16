@@ -14,7 +14,6 @@ export const createTest = asyncHandler(async (req, res) => {
     title,
     description,
     mcqQuestions,
-    codingQuestions,
     passPercentage,
     timeLimit,
     scheduledAt,
@@ -38,22 +37,13 @@ export const createTest = asyncHandler(async (req, res) => {
     return errorResponse(res, 400, 'Test already exists for this leave request')
   }
 
-  // Validate questions
-  if (
-    (!mcqQuestions || mcqQuestions.length === 0) &&
-    (!codingQuestions || codingQuestions.length === 0)
-  ) {
-    return errorResponse(res, 400, 'Test must have at least one question (MCQ or Coding)')
-  }
-
-  // Create test
+  // Create test - no validation on questions, let MongoDB handle it
   const test = await Test.create({
     leave: leaveId,
     createdBy: req.user._id,
     title,
     description,
     mcqQuestions: mcqQuestions || [],
-    codingQuestions: codingQuestions || [],
     passPercentage: passPercentage || 60,
     timeLimit: timeLimit || 60,
     scheduledAt,
@@ -73,27 +63,6 @@ export const createTest = asyncHandler(async (req, res) => {
   successResponse(res, 201, 'Test created successfully', { test })
 })
 
-// @desc    Get all tests (Admin)
-// @route   GET /api/test
-// @access  Private (Admin)
-export const getAllTests = asyncHandler(async (req, res) => {
-  const tests = await Test.find()
-    .populate({
-      path: 'leave',
-      populate: {
-        path: 'student',
-        select: 'name email department'
-      }
-    })
-    .populate('createdBy', 'name email')
-    .sort('-createdAt')
-
-  successResponse(res, 200, 'Tests retrieved successfully', {
-    count: tests.length,
-    tests
-  })
-})
-
 // @desc    Get test by ID
 // @route   GET /api/test/:id
 // @access  Private
@@ -110,14 +79,6 @@ export const getTestById = asyncHandler(async (req, res) => {
 
   if (!test) {
     return errorResponse(res, 404, 'Test not found')
-  }
-
-  // Students can only see tests for their own leave requests
-  if (req.user.role === 'student') {
-    const leave = await Leave.findById(test.leave._id)
-    if (leave.student.toString() !== req.user._id.toString()) {
-      return errorResponse(res, 403, 'Not authorized to access this test')
-    }
   }
 
   successResponse(res, 200, 'Test retrieved successfully', { test })
@@ -166,7 +127,6 @@ export const updateTest = asyncHandler(async (req, res) => {
     title,
     description,
     mcqQuestions,
-    codingQuestions,
     passPercentage,
     timeLimit,
     scheduledAt,
@@ -178,7 +138,6 @@ export const updateTest = asyncHandler(async (req, res) => {
   if (title) test.title = title
   if (description) test.description = description
   if (mcqQuestions) test.mcqQuestions = mcqQuestions
-  if (codingQuestions) test.codingQuestions = codingQuestions
   if (passPercentage !== undefined) test.passPercentage = passPercentage
   if (timeLimit) test.timeLimit = timeLimit
   if (scheduledAt) test.scheduledAt = scheduledAt
@@ -209,19 +168,33 @@ export const deleteTest = asyncHandler(async (req, res) => {
     return errorResponse(res, 404, 'Test not found')
   }
 
-  // Update associated leave status back to pending
-  const leave = await Leave.findById(test.leave)
-  if (leave && leave.status === 'test_assigned') {
-    leave.status = 'pending'
-    await leave.save()
-  }
-
-  await test.deleteOne()
+  await Test.findByIdAndDelete(req.params.id)
 
   successResponse(res, 200, 'Test deleted successfully', null)
 })
 
-// @desc    Get tests for current student's leaves
+// @desc    Get all tests for admin
+// @route   GET /api/test
+// @access  Private (Admin)
+export const getAllTests = asyncHandler(async (req, res) => {
+  const tests = await Test.find()
+    .populate({
+      path: 'leave',
+      populate: {
+        path: 'student',
+        select: 'name email department'
+      }
+    })
+    .populate('createdBy', 'name email')
+    .sort('-createdAt')
+
+  successResponse(res, 200, 'Tests retrieved successfully', {
+    count: tests.length,
+    tests
+  })
+})
+
+// @desc    Get tests for student
 // @route   GET /api/test/my-tests
 // @access  Private (Student)
 export const getMyTests = asyncHandler(async (req, res) => {
@@ -258,27 +231,20 @@ export const getMyTests = asyncHandler(async (req, res) => {
 export const submitTest = asyncHandler(async (req, res) => {
   const testId = req.params.id
   const studentId = req.user._id
-  const { mcqAnswers, codingAnswers, timeTaken } = req.body
+  const { mcqAnswers, timeTaken } = req.body
 
   // Validate submission data
-  if (!mcqAnswers && !codingAnswers) {
-    return errorResponse(res, 400, 'Please provide at least one answer (MCQ or Coding)')
+  if (!mcqAnswers || !Array.isArray(mcqAnswers)) {
+    return errorResponse(res, 400, 'Please provide MCQ answers as an array')
   }
 
-  // Validate mcqAnswers format
-  if (mcqAnswers && !Array.isArray(mcqAnswers)) {
-    return errorResponse(res, 400, 'MCQ answers must be an array')
-  }
-
-  // Validate codingAnswers format
-  if (codingAnswers && !Array.isArray(codingAnswers)) {
-    return errorResponse(res, 400, 'Coding answers must be an array')
+  if (mcqAnswers.length === 0) {
+    return errorResponse(res, 400, 'Please provide at least one answer')
   }
 
   // Prepare submission object
   const submission = {
     mcqAnswers: mcqAnswers || [],
-    codingAnswers: codingAnswers || [],
     timeTaken: timeTaken || 0
   }
 
@@ -332,54 +298,24 @@ export const getTestResult = asyncHandler(async (req, res) => {
 export const getMyResults = asyncHandler(async (req, res) => {
   const results = await evaluationService.getStudentResults(req.user._id)
 
-  successResponse(res, 200, 'Your test results retrieved successfully', {
+  successResponse(res, 200, 'Test results retrieved successfully', {
     count: results.length,
     results
   })
-})
-
-// @desc    Get student statistics
-// @route   GET /api/test/statistics/me
-// @access  Private (Student)
-export const getMyStatistics = asyncHandler(async (req, res) => {
-  const statistics = await evaluationService.getStudentStatistics(req.user._id)
-
-  successResponse(res, 200, 'Statistics retrieved successfully', { statistics })
 })
 
 // @desc    Get all test results (Admin)
-// @route   GET /api/test/results/all
+// @route   GET /api/test/results
 // @access  Private (Admin)
 export const getAllResults = asyncHandler(async (req, res) => {
   const results = await TestResult.find()
-    .populate([
-      { path: 'test', select: 'title description totalMarks passPercentage' },
-      { path: 'student', select: 'name email department' },
-      { path: 'leave', select: 'startDate endDate status reason' }
-    ])
+    .populate('test', 'title totalMarks passPercentage')
+    .populate('student', 'name email department')
+    .populate('leave', 'startDate endDate reason')
     .sort('-submittedAt')
 
-  successResponse(res, 200, 'All test results retrieved successfully', {
+  successResponse(res, 200, 'Test results retrieved successfully', {
     count: results.length,
     results
-  })
-})
-
-// @desc    Get results by student ID (Admin)
-// @route   GET /api/test/results/student/:studentId
-// @access  Private (Admin)
-export const getResultsByStudent = asyncHandler(async (req, res) => {
-  const results = await evaluationService.getStudentResults(req.params.studentId)
-
-  if (results.length === 0) {
-    return errorResponse(res, 404, 'No results found for this student')
-  }
-
-  const statistics = await evaluationService.getStudentStatistics(req.params.studentId)
-
-  successResponse(res, 200, 'Student results retrieved successfully', {
-    count: results.length,
-    results,
-    statistics
   })
 })

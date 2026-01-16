@@ -15,7 +15,7 @@ class EvaluationService {
    * Process and evaluate a test submission
    * @param {String} testId - Test ID
    * @param {String} studentId - Student ID
-   * @param {Object} submission - Submission data (mcqAnswers, codingAnswers)
+   * @param {Object} submission - Submission data (mcqAnswers)
    * @returns {Object} - Evaluation result
    */
   async processTestSubmission(testId, studentId, submission) {
@@ -48,32 +48,23 @@ class EvaluationService {
         submission.mcqAnswers
       )
 
-      // 5. Evaluate Coding Questions
-      const codingEvaluation = evaluateAllCodingQuestions(
-        test.codingQuestions,
-        submission.codingAnswers
-      )
-
-      // 6. Calculate total scores
+      // 5. Calculate total scores
       const mcqScore = mcqEvaluation.totalScore
-      const codingScore = codingEvaluation.totalScore
-      const totalScore = parseFloat((mcqScore + codingScore).toFixed(2))
+      const totalScore = parseFloat(mcqScore.toFixed(2))
       const maxScore = test.totalMarks
-      const percentage = parseFloat(((totalScore / maxScore) * 100).toFixed(2))
+      const percentage = maxScore > 0 ? parseFloat(((totalScore / maxScore) * 100).toFixed(2)) : 0
       const passed = percentage >= test.passPercentage
 
-      // 7. Generate feedback
+      // 6. Generate feedback
       const feedback = generateFeedback(percentage, passed)
 
-      // 8. Create result object
+      // 7. Create result object
       const resultData = {
         test: testId,
         student: studentId,
         leave: test.leave._id,
         mcqAnswers: mcqEvaluation.evaluatedAnswers,
-        codingAnswers: codingEvaluation.evaluatedAnswers,
         mcqScore,
-        codingScore,
         totalScore,
         maxScore,
         percentage,

@@ -1,14 +1,10 @@
 /**
- * Evaluation Helper Utilities
- * Contains reusable functions for evaluating MCQ and coding questions
+ * Simple evaluation helpers for MCQ and coding questions
+ * No complex validations - just basic comparison logic
  */
 
 /**
  * Evaluate a single MCQ answer
- * @param {Number} submittedAnswer - Answer selected by student (index)
- * @param {Number} correctAnswer - Correct answer index
- * @param {Number} marks - Marks for the question
- * @returns {Object} - Evaluation result
  */
 export const evaluateMCQ = (submittedAnswer, correctAnswer, marks) => {
   const isCorrect = submittedAnswer === correctAnswer
@@ -23,16 +19,12 @@ export const evaluateMCQ = (submittedAnswer, correctAnswer, marks) => {
 
 /**
  * Evaluate all MCQ questions
- * @param {Array} mcqQuestions - Array of MCQ questions from test
- * @param {Array} submittedAnswers - Array of submitted MCQ answers
- * @returns {Object} - Contains evaluated answers and total score
  */
 export const evaluateAllMCQs = (mcqQuestions, submittedAnswers) => {
   if (!mcqQuestions || mcqQuestions.length === 0) {
     return {
       evaluatedAnswers: [],
-      totalScore: 0,
-      totalQuestions: 0
+      totalScore: 0
     }
   }
 
@@ -40,10 +32,7 @@ export const evaluateAllMCQs = (mcqQuestions, submittedAnswers) => {
   const evaluatedAnswers = []
 
   mcqQuestions.forEach((question, index) => {
-    // Find the submitted answer for this question
-    const submission = submittedAnswers?.find(
-      (ans) => ans.questionIndex === index
-    )
+    const submission = submittedAnswers?.find(ans => ans.questionIndex === index)
 
     if (submission) {
       const result = evaluateMCQ(
@@ -62,7 +51,6 @@ export const evaluateAllMCQs = (mcqQuestions, submittedAnswers) => {
 
       totalScore += result.marksAwarded
     } else {
-      // Question not attempted
       evaluatedAnswers.push({
         questionIndex: index,
         selectedAnswer: null,
@@ -75,109 +63,36 @@ export const evaluateAllMCQs = (mcqQuestions, submittedAnswers) => {
 
   return {
     evaluatedAnswers,
-    totalScore,
-    totalQuestions: mcqQuestions.length
+    totalScore
   }
 }
 
 /**
- * Compare two strings (trim and normalize)
- * @param {String} str1 - First string
- * @param {String} str2 - Second string
- * @returns {Boolean} - True if strings match
+ * Evaluate a single coding question
+ * Simple string comparison - exact match after trim
  */
-export const compareOutputs = (str1, str2) => {
-  if (!str1 || !str2) return false
-
-  // Normalize: trim, remove extra spaces, handle line breaks
-  const normalize = (str) =>
-    str
-      .toString()
-      .trim()
-      .replace(/\s+/g, ' ') // Replace multiple spaces with single space
-      .toLowerCase()
-
-  return normalize(str1) === normalize(str2)
-}
-
-/**
- * Evaluate a single coding question based on test cases
- * @param {Object} codingQuestion - The coding question object
- * @param {String} submittedCode - Code submitted by student
- * @param {String} submittedOutput - Output string provided by student
- * @returns {Object} - Evaluation result with test case results
- */
-export const evaluateCodingQuestion = (
-  codingQuestion,
-  submittedCode,
-  submittedOutput
-) => {
-  const testCaseResults = []
-  let passedTestCases = 0
-
-  // Since we're not executing code, we expect student to provide output
-  // We'll compare their output with expected outputs for each test case
-
-  if (!codingQuestion.testCases || codingQuestion.testCases.length === 0) {
-    return {
-      testCaseResults: [],
-      passedTestCases: 0,
-      totalTestCases: 0,
-      marksAwarded: 0
-    }
-  }
-
-  const totalTestCases = codingQuestion.testCases.length
-
-  // Parse submitted output (expected format: outputs separated by newlines or delimiters)
-  const submittedOutputs = submittedOutput
-    ? submittedOutput.split('\n').map((line) => line.trim())
-    : []
-
-  codingQuestion.testCases.forEach((testCase, index) => {
-    const studentOutput = submittedOutputs[index] || ''
-    const passed = compareOutputs(studentOutput, testCase.expectedOutput)
-
-    testCaseResults.push({
-      input: testCase.input,
-      expectedOutput: testCase.expectedOutput,
-      submittedOutput: studentOutput,
-      passed
-    })
-
-    if (passed) {
-      passedTestCases++
-    }
-  })
-
-  // Calculate marks based on test cases passed
-  // Partial scoring: proportional to test cases passed
-  const marksAwarded =
-    (passedTestCases / totalTestCases) * codingQuestion.marks
-
+export const evaluateCoding = (submittedOutput, expectedOutput, marks) => {
+  const submitted = (submittedOutput || '').trim()
+  const expected = (expectedOutput || '').trim()
+  
+  const isCorrect = submitted === expected
+  const marksAwarded = isCorrect ? marks : 0
+  
   return {
-    testCaseResults,
-    passedTestCases,
-    totalTestCases,
-    marksAwarded: parseFloat(marksAwarded.toFixed(2))
+    isCorrect,
+    marksAwarded,
+    expectedOutput: expected
   }
 }
 
 /**
  * Evaluate all coding questions
- * @param {Array} codingQuestions - Array of coding questions from test
- * @param {Array} submittedAnswers - Array of submitted coding answers
- * @returns {Object} - Contains evaluated answers and total score
  */
-export const evaluateAllCodingQuestions = (
-  codingQuestions,
-  submittedAnswers
-) => {
+export const evaluateAllCodingQuestions = (codingQuestions, submittedAnswers) => {
   if (!codingQuestions || codingQuestions.length === 0) {
     return {
       evaluatedAnswers: [],
-      totalScore: 0,
-      totalQuestions: 0
+      totalScore: 0
     }
   }
 
@@ -185,64 +100,39 @@ export const evaluateAllCodingQuestions = (
   const evaluatedAnswers = []
 
   codingQuestions.forEach((question, index) => {
-    // Find the submitted answer for this question
-    const submission = submittedAnswers?.find(
-      (ans) => ans.questionIndex === index
+    const submission = submittedAnswers?.find(ans => ans.questionIndex === index)
+    const submittedOutput = submission ? submission.submittedOutput : ''
+
+    const result = evaluateCoding(
+      submittedOutput,
+      question.expectedOutput,
+      question.marks
     )
-
-    if (submission) {
-      const result = evaluateCodingQuestion(
-        question,
-        submission.submittedCode,
-        submission.submittedOutput
-      )
-
-      evaluatedAnswers.push({
-        questionIndex: index,
-        submittedCode: submission.submittedCode,
-        testCaseResults: result.testCaseResults,
-        passedTestCases: result.passedTestCases,
-        totalTestCases: result.totalTestCases,
-        marksAwarded: result.marksAwarded
-      })
-
-      totalScore += result.marksAwarded
-    } else {
-      // Question not attempted
-      evaluatedAnswers.push({
-        questionIndex: index,
-        submittedCode: '',
-        testCaseResults: [],
-        passedTestCases: 0,
-        totalTestCases: question.testCases?.length || 0,
-        marksAwarded: 0
-      })
-    }
+    
+    evaluatedAnswers.push({
+      questionIndex: index,
+      submittedOutput,
+      expectedOutput: result.expectedOutput,
+      isCorrect: result.isCorrect,
+      marksAwarded: result.marksAwarded
+    })
+    
+    totalScore += result.marksAwarded
   })
 
   return {
     evaluatedAnswers,
-    totalScore: parseFloat(totalScore.toFixed(2)),
-    totalQuestions: codingQuestions.length
+    totalScore
   }
 }
 
 /**
- * Generate feedback based on performance
- * @param {Number} percentage - Score percentage
- * @param {Boolean} passed - Whether student passed
- * @returns {String} - Feedback message
+ * Generate simple feedback
  */
-export const generateFeedback = (percentage, passed) => {
-  if (percentage >= 90) {
-    return 'Outstanding performance! Your leave request has been approved.'
-  } else if (percentage >= 75) {
-    return 'Excellent work! Your leave request has been approved.'
-  } else if (percentage >= 60) {
-    return 'Good effort. Your leave request has been approved.'
-  } else if (percentage >= 50) {
-    return 'Your performance was below the passing threshold. Please review the material and try again.'
+export const generateFeedback = (score, maxScore, passed) => {
+  if (passed) {
+    return `Congratulations! You scored ${score}/${maxScore}. Your leave has been approved.`
   } else {
-    return 'Your performance needs significant improvement. Please prepare better before resubmitting.'
+    return `You scored ${score}/${maxScore}. Unfortunately, you did not pass. Your leave has been rejected.`
   }
 }

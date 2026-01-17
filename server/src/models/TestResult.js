@@ -1,54 +1,51 @@
 import mongoose from 'mongoose'
 
-/**
- * Schema for storing student's test submission and evaluation results
- */
 const testResultSchema = new mongoose.Schema(
   {
     test: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Test',
-      required: [true, 'Test reference is required']
+      required: true
     },
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Student reference is required']
+      required: true
     },
     leave: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Leave',
-      required: [true, 'Leave reference is required']
+      required: true
     },
     
     // MCQ Submissions
     mcqAnswers: [
       {
-        questionIndex: {
-          type: Number,
-          required: true
-        },
-        selectedAnswer: {
-          type: Number,
-          required: true
-        },
-        correctAnswer: {
-          type: Number,
-          required: true
-        },
-        isCorrect: {
-          type: Boolean,
-          required: true
-        },
-        marksAwarded: {
-          type: Number,
-          default: 0
-        }
+        questionIndex: Number,
+        selectedAnswer: Number,
+        correctAnswer: Number,
+        isCorrect: Boolean,
+        marksAwarded: Number
       }
     ],
     
-    // Scores and Results
+    // Coding Submissions
+    codingAnswers: [
+      {
+        questionIndex: Number,
+        submittedOutput: String,
+        expectedOutput: String,
+        isCorrect: Boolean,
+        marksAwarded: Number
+      }
+    ],
+    
+    // Scores
     mcqScore: {
+      type: Number,
+      default: 0
+    },
+    codingScore: {
       type: Number,
       default: 0
     },
@@ -61,19 +58,13 @@ const testResultSchema = new mongoose.Schema(
       type: Number,
       required: true
     },
-    percentage: {
-      type: Number,
-      required: true,
-      min: 0,
-      max: 100
-    },
     
     // Pass/Fail Status
     passed: {
       type: Boolean,
       required: true
     },
-    passPercentage: {
+    passMarks: {
       type: Number,
       required: true
     },
@@ -84,11 +75,9 @@ const testResultSchema = new mongoose.Schema(
       default: Date.now
     },
     timeTaken: {
-      type: Number, // in seconds
-      min: 0
+      type: Number,
+      default: 0
     },
-    
-    // Remarks
     feedback: {
       type: String,
       trim: true
@@ -101,20 +90,6 @@ const testResultSchema = new mongoose.Schema(
 
 // Ensure one submission per student per test
 testResultSchema.index({ test: 1, student: 1 }, { unique: true })
-
-// Index for faster queries
-testResultSchema.index({ student: 1 })
-testResultSchema.index({ leave: 1 })
-testResultSchema.index({ passed: 1 })
-
-// Calculate percentage before saving
-testResultSchema.pre('save', function (next) {
-  if (this.maxScore > 0) {
-    this.percentage = parseFloat(((this.totalScore / this.maxScore) * 100).toFixed(2))
-    this.passed = this.percentage >= this.passPercentage
-  }
-  next()
-})
 
 const TestResult = mongoose.model('TestResult', testResultSchema)
 

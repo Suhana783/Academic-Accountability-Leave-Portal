@@ -17,6 +17,7 @@ import LeaveReviewPage from './pages/LeaveReviewPage'
 import AdminResultsPage from './pages/AdminResultsPage'
 import AddStudentPage from './pages/AddStudentPage'
 import AddAdminPage from './pages/AddAdminPage'
+import RemoveUserPage from './pages/RemoveUserPage'
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
               <Route path="/admin/results" element={<AdminResultsPage />} />
               <Route path="/admin/add-student" element={<AddStudentPage />} />
               <Route path="/admin/add-admin" element={<AddAdminPage />} />
+              <Route path="/admin/remove-user" element={<RemoveUserPage />} />
             </Route>
 
             <Route path="/" element={<Navigate to="/login" replace />} />

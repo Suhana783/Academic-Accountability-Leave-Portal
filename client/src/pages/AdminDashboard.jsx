@@ -31,9 +31,10 @@ const AdminDashboard = () => {
         
         {/* User Management Section */}
         <h3 style={{ marginTop: '20px', marginBottom: '15px' }}>User Management</h3>
-        <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap: 'wrap' }}>
           <Link className="btn" to="/admin/add-student">Add Student</Link>
           <Link className="btn" to="/admin/add-admin">Add Admin</Link>
+          <Link className="btn danger" to="/admin/remove-user">Remove User</Link>
           <Link className="btn" to="/admin/results">View Test Results</Link>
         </div>
 

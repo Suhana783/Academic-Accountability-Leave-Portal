@@ -14,10 +14,8 @@ export const createTest = asyncHandler(async (req, res) => {
     title,
     description,
     mcqQuestions,
-    passPercentage,
-    timeLimit,
-    scheduledAt,
-    expiresAt
+    codingQuestions,
+    passMarks
   } = req.body
 
   // Validate required fields
@@ -37,17 +35,15 @@ export const createTest = asyncHandler(async (req, res) => {
     return errorResponse(res, 400, 'Test already exists for this leave request')
   }
 
-  // Create test - no validation on questions, let MongoDB handle it
+  // Create test
   const test = await Test.create({
     leave: leaveId,
     createdBy: req.user._id,
     title,
     description,
     mcqQuestions: mcqQuestions || [],
-    passPercentage: passPercentage || 60,
-    timeLimit: timeLimit || 60,
-    scheduledAt,
-    expiresAt
+    codingQuestions: codingQuestions || [],
+    passMarks: passMarks || 0
   })
 
   // Update leave status to test_assigned
@@ -127,10 +123,8 @@ export const updateTest = asyncHandler(async (req, res) => {
     title,
     description,
     mcqQuestions,
-    passPercentage,
-    timeLimit,
-    scheduledAt,
-    expiresAt,
+    codingQuestions,
+    passMarks,
     isActive
   } = req.body
 
@@ -138,10 +132,8 @@ export const updateTest = asyncHandler(async (req, res) => {
   if (title) test.title = title
   if (description) test.description = description
   if (mcqQuestions) test.mcqQuestions = mcqQuestions
-  if (passPercentage !== undefined) test.passPercentage = passPercentage
-  if (timeLimit) test.timeLimit = timeLimit
-  if (scheduledAt) test.scheduledAt = scheduledAt
-  if (expiresAt) test.expiresAt = expiresAt
+  if (codingQuestions) test.codingQuestions = codingQuestions
+  if (passMarks !== undefined) test.passMarks = passMarks
   if (isActive !== undefined) test.isActive = isActive
 
   await test.save()
@@ -231,20 +223,12 @@ export const getMyTests = asyncHandler(async (req, res) => {
 export const submitTest = asyncHandler(async (req, res) => {
   const testId = req.params.id
   const studentId = req.user._id
-  const { mcqAnswers, timeTaken } = req.body
-
-  // Validate submission data
-  if (!mcqAnswers || !Array.isArray(mcqAnswers)) {
-    return errorResponse(res, 400, 'Please provide MCQ answers as an array')
-  }
-
-  if (mcqAnswers.length === 0) {
-    return errorResponse(res, 400, 'Please provide at least one answer')
-  }
+  const { mcqAnswers, codingAnswers, timeTaken } = req.body
 
   // Prepare submission object
   const submission = {
     mcqAnswers: mcqAnswers || [],
+    codingAnswers: codingAnswers || [],
     timeTaken: timeTaken || 0
   }
 
@@ -317,5 +301,48 @@ export const getAllResults = asyncHandler(async (req, res) => {
   successResponse(res, 200, 'Test results retrieved successfully', {
     count: results.length,
     results
+  })
+})
+
+// @desc    Get test results by student (Admin)
+// @route   GET /api/test/results/student/:studentId
+// @access  Private (Admin)
+export const getResultsByStudent = asyncHandler(async (req, res) => {
+  const { studentId } = req.params
+
+  const results = await TestResult.find({ student: studentId })
+    .populate('test', 'title totalMarks passPercentage')
+    .populate('leave', 'startDate endDate reason')
+    .sort('-submittedAt')
+
+  successResponse(res, 200, 'Student test results retrieved successfully', {
+    count: results.length,
+    results
+  })
+})
+
+// @desc    Get my test statistics (Student)
+// @route   GET /api/test/my-statistics
+// @access  Private (Student)
+export const getMyStatistics = asyncHandler(async (req, res) => {
+  const studentId = req.user._id
+
+  const results = await TestResult.find({ student: studentId })
+
+  const totalTests = results.length
+  const passedTests = results.filter(r => r.passed).length
+  const failedTests = totalTests - passedTests
+  const averageScore = totalTests > 0
+    ? results.reduce((sum, r) => sum + r.percentage, 0) / totalTests
+    : 0
+
+  successResponse(res, 200, 'Statistics retrieved successfully', {
+    statistics: {
+      totalTests,
+      passedTests,
+      failedTests,
+      averageScore: Math.round(averageScore * 100) / 100,
+      passRate: totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0
+    }
   })
 })

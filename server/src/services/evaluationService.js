@@ -8,68 +8,76 @@ import {
 } from '../utils/evaluationHelper.js'
 
 /**
- * Service for handling test evaluation and result processing
+ * Simple evaluation service
  */
 class EvaluationService {
   /**
    * Process and evaluate a test submission
-   * @param {String} testId - Test ID
-   * @param {String} studentId - Student ID
-   * @param {Object} submission - Submission data (mcqAnswers)
-   * @returns {Object} - Evaluation result
    */
   async processTestSubmission(testId, studentId, submission) {
     try {
-      // 1. Fetch the test with all questions
-      const test = await Test.findById(testId).populate('leave')
+      // Fetch the test
+      const test = await Test.findById(testId).populate({
+        path: 'leave',
+        populate: {
+          path: 'student'
+        }
+      })
 
       if (!test) {
         throw new Error('Test not found')
       }
 
-      // 2. Verify test belongs to this student's leave
-      if (test.leave.student.toString() !== studentId) {
-        throw new Error('Unauthorized: This test is not assigned to you')
+      // Verify test belongs to this student's leave
+      if (test.leave.student._id.toString() !== studentId.toString()) {
+        throw new Error('This test is not assigned to you')
       }
 
-      // 3. Check if already submitted
+      // Check if already submitted
       const existingResult = await TestResult.findOne({
         test: testId,
         student: studentId
       })
 
       if (existingResult) {
-        throw new Error('Test already submitted. Multiple submissions not allowed')
+        throw new Error('Test already submitted')
       }
 
-      // 4. Evaluate MCQ Questions
+      // Evaluate MCQs
       const mcqEvaluation = evaluateAllMCQs(
         test.mcqQuestions,
-        submission.mcqAnswers
+        submission.mcqAnswers || []
       )
 
-      // 5. Calculate total scores
+      // Evaluate Coding Questions
+      const codingEvaluation = evaluateAllCodingQuestions(
+        test.codingQuestions,
+        submission.codingAnswers || []
+      )
+
+      // Calculate total score
       const mcqScore = mcqEvaluation.totalScore
-      const totalScore = parseFloat(mcqScore.toFixed(2))
+      const codingScore = codingEvaluation.totalScore
+      const totalScore = mcqScore + codingScore
       const maxScore = test.totalMarks
-      const percentage = maxScore > 0 ? parseFloat(((totalScore / maxScore) * 100).toFixed(2)) : 0
-      const passed = percentage >= test.passPercentage
+      const passed = totalScore >= test.passMarks
 
-      // 6. Generate feedback
-      const feedback = generateFeedback(percentage, passed)
+      // Generate feedback
+      const feedback = generateFeedback(totalScore, maxScore, passed)
 
-      // 7. Create result object
+      // Create result object
       const resultData = {
         test: testId,
         student: studentId,
         leave: test.leave._id,
         mcqAnswers: mcqEvaluation.evaluatedAnswers,
+        codingAnswers: codingEvaluation.evaluatedAnswers,
         mcqScore,
+        codingScore,
         totalScore,
         maxScore,
-        percentage,
         passed,
-        passPercentage: test.passPercentage,
+        passMarks: test.passMarks,
         feedback,
         submittedAt: new Date(),
         timeTaken: submission.timeTaken || 0
@@ -83,9 +91,6 @@ class EvaluationService {
 
   /**
    * Update leave status based on test result
-   * @param {String} leaveId - Leave ID
-   * @param {Boolean} passed - Whether student passed the test
-   * @returns {Object} - Updated leave
    */
   async updateLeaveStatus(leaveId, passed) {
     try {
@@ -95,12 +100,11 @@ class EvaluationService {
         throw new Error('Leave not found')
       }
 
-      // Update status based on test result
       leave.status = passed ? 'approved' : 'rejected'
       leave.reviewedAt = new Date()
       leave.adminRemarks = passed
-        ? 'Leave approved based on successful test completion'
-        : 'Leave rejected due to test failure. Please retake the test.'
+        ? 'Leave approved - test passed'
+        : 'Leave rejected - test failed'
 
       await leave.save()
 
@@ -111,33 +115,29 @@ class EvaluationService {
   }
 
   /**
-   * Complete submission process: evaluate test and update leave
-   * @param {String} testId - Test ID
-   * @param {String} studentId - Student ID
-   * @param {Object} submission - Submission data
-   * @returns {Object} - Complete result with leave update status
+   * Complete submission: evaluate and update leave
    */
   async completeSubmission(testId, studentId, submission) {
     try {
-      // 1. Process and evaluate the test
+      // Process and evaluate
       const resultData = await this.processTestSubmission(
         testId,
         studentId,
         submission
       )
 
-      // 2. Save the result
+      // Save result
       const testResult = await TestResult.create(resultData)
 
-      // 3. Update leave status
+      // Update leave status
       const updatedLeave = await this.updateLeaveStatus(
         resultData.leave,
         resultData.passed
       )
 
-      // 4. Populate references for response
+      // Populate references
       await testResult.populate([
-        { path: 'test', select: 'title description totalMarks passPercentage' },
+        { path: 'test', select: 'title description totalMarks passMarks' },
         { path: 'student', select: 'name email' },
         { path: 'leave', select: 'startDate endDate status reason' }
       ])
@@ -156,9 +156,6 @@ class EvaluationService {
 
   /**
    * Get test result by student and test
-   * @param {String} testId - Test ID
-   * @param {String} studentId - Student ID
-   * @returns {Object} - Test result
    */
   async getTestResult(testId, studentId) {
     try {
@@ -166,7 +163,7 @@ class EvaluationService {
         test: testId,
         student: studentId
       }).populate([
-        { path: 'test', select: 'title description totalMarks passPercentage' },
+        { path: 'test', select: 'title description totalMarks passMarks' },
         { path: 'student', select: 'name email' },
         { path: 'leave', select: 'startDate endDate status reason' }
       ])
@@ -179,52 +176,17 @@ class EvaluationService {
 
   /**
    * Get all results for a student
-   * @param {String} studentId - Student ID
-   * @returns {Array} - Array of test results
    */
   async getStudentResults(studentId) {
     try {
       const results = await TestResult.find({ student: studentId })
         .populate([
-          { path: 'test', select: 'title description totalMarks passPercentage' },
+          { path: 'test', select: 'title description totalMarks passMarks' },
           { path: 'leave', select: 'startDate endDate status reason' }
         ])
         .sort({ submittedAt: -1 })
 
       return results
-    } catch (error) {
-      throw error
-    }
-  }
-
-  /**
-   * Get statistics for a student
-   * @param {String} studentId - Student ID
-   * @returns {Object} - Statistics
-   */
-  async getStudentStatistics(studentId) {
-    try {
-      const results = await TestResult.find({ student: studentId })
-
-      const totalTests = results.length
-      const passedTests = results.filter((r) => r.passed).length
-      const failedTests = totalTests - passedTests
-      const averagePercentage =
-        totalTests > 0
-          ? parseFloat(
-              (
-                results.reduce((sum, r) => sum + r.percentage, 0) / totalTests
-              ).toFixed(2)
-            )
-          : 0
-
-      return {
-        totalTests,
-        passedTests,
-        failedTests,
-        averagePercentage,
-        passRate: totalTests > 0 ? ((passedTests / totalTests) * 100).toFixed(2) : 0
-      }
     } catch (error) {
       throw error
     }

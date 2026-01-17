@@ -19,3 +19,10 @@ export const createAdmin = async (payload) => {
   const { data } = await api.post('/auth/create-admin', payload)
   return data?.data
 }
+
+export const removeUser = async (email, password) => {
+  const { data } = await api.delete('/auth/remove-user', {
+    data: { email, password }
+  })
+  return data?.data
+}

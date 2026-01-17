@@ -1,5 +1,5 @@
 import express from 'express'
-import { login, getMe, logout, createStudent, createAdmin } from '../controllers/authController.js'
+import { login, getMe, logout, createStudent, createAdmin, removeUser } from '../controllers/authController.js'
 import { protect, restrictTo } from '../middleware/authMiddleware.js'
 
 const router = express.Router()
@@ -14,5 +14,6 @@ router.post('/logout', protect, logout)
 // Admin-only routes
 router.post('/create-student', protect, restrictTo('admin'), createStudent)
 router.post('/create-admin', protect, restrictTo('admin'), createAdmin)
+router.delete('/remove-user', protect, restrictTo('admin'), removeUser)
 
 export default router

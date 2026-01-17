@@ -37,32 +37,36 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="card">
+    <div className="card login-card">
       <h2>Academic Accountability Leave Portal</h2>
-      <p style={{ textAlign: 'center', color: '#666', marginBottom: '30px' }}>
+      <p className="muted">
         Login with your email and password
       </p>
       
       <form className="form" onSubmit={onSubmit}>
-        <label>Email</label>
-        <input 
-          name="email" 
-          type="email" 
-          value={form.email} 
-          onChange={onChange}
-          placeholder="Enter your email"
-          required 
-        />
+        <div>
+          <label>Email</label>
+          <input 
+            name="email" 
+            type="email" 
+            value={form.email} 
+            onChange={onChange}
+            placeholder="Enter your email"
+            required 
+          />
+        </div>
 
-        <label>Password</label>
-        <input
-          name="password"
-          type="password"
-          value={form.password}
-          onChange={onChange}
-          placeholder="Enter your password"
-          required
-        />
+        <div>
+          <label>Password</label>
+          <input
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={onChange}
+            placeholder="Enter your password"
+            required
+          />
+        </div>
 
         {error && <div className="error">{error}</div>}
 
@@ -71,15 +75,10 @@ const LoginPage = () => {
         </button>
       </form>
       
-      <p style={{ 
-        marginTop: '20px', 
-        fontSize: '14px', 
-        color: '#666',
-        textAlign: 'center'
-      }}>
+      <div className="info-box" style={{ marginTop: '24px', fontSize: '13px' }}>
         <strong>Note:</strong> Only administrators can create new user accounts. 
         Please contact your administrator for account creation.
-      </p>
+      </div>
     </div>
   )
 }

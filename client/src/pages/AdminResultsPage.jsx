@@ -12,9 +12,10 @@ const AdminResultsPage = () => {
     try {
       setError('')
       setLoading(true)
+      setFilter('')
+      setStatistics(null)
       const data = await getAllResults()
       setResults(data)
-      setStatistics(null)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -28,31 +29,46 @@ const AdminResultsPage = () => {
 
   const handleFilter = async (e) => {
     e.preventDefault()
-    if (!filter) return loadAll()
+    if (!filter.trim()) return loadAll()
     try {
       setLoading(true)
+      setError('')
+      setStatistics(null)
       const { results: filtered, statistics: stats } = await getResultsByStudent(filter)
       setResults(filtered)
       setStatistics(stats)
-      setError('')
     } catch (err) {
       setError(err.message)
+      setResults([])
     } finally {
       setLoading(false)
     }
   }
 
+  const handleReset = async (e) => {
+    e.preventDefault()
+    await loadAll()
+  }
+
   return (
     <div className="card">
       <h2>Test Results (Admin)</h2>
-      <form className="form inline" onSubmit={handleFilter}>
-        <input
-          placeholder="Filter by studentId"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-        />
-        <button className="btn" type="submit">Filter</button>
-        <button className="btn ghost" type="button" onClick={loadAll}>Reset</button>
+      <form className="form" onSubmit={handleFilter}>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <label>Filter by Student ID</label>
+            <input
+              placeholder="Enter student ID to filter"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              type="text"
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button className="btn" type="submit">Filter</button>
+            <button className="btn ghost" type="button" onClick={handleReset}>Reset</button>
+          </div>
+        </div>
       </form>
 
       {statistics && (

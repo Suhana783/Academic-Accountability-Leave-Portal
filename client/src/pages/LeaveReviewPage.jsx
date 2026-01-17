@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { getLeave } from '../services/leaveService'
 import { createTest, getTestByLeave } from '../services/testService'
 
-const defaultQuestion = { question: '', options: '', correctAnswer: 0, marks: 1 }
+const defaultMcq = { question: '', options: '', correctAnswer: 0, marks: 1 }
+const defaultCoding = { question: '', expectedOutput: '', marks: 1 }
 
 const LeaveReviewPage = () => {
   const { id } = useParams()
@@ -15,10 +16,10 @@ const LeaveReviewPage = () => {
   const [form, setForm] = useState({
     title: 'Assessment for Leave',
     description: 'Please complete this test to process your leave request.',
-    passPercentage: 60,
-    timeLimit: 60
+    passMarks: 0
   })
-  const [mcqs, setMcqs] = useState([defaultQuestion])
+  const [mcqs, setMcqs] = useState([defaultMcq])
+  const [codingQuestions, setCodingQuestions] = useState([defaultCoding])
 
   useEffect(() => {
     const fetchData = async () => {
@@ -42,7 +43,12 @@ const LeaveReviewPage = () => {
     setMcqs((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
   }
 
-  const addMcq = () => setMcqs((prev) => [...prev, { ...defaultQuestion }])
+  const updateCoding = (index, field, value) => {
+    setCodingQuestions((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
+  }
+
+  const addMcq = () => setMcqs((prev) => [...prev, { ...defaultMcq }])
+  const addCoding = () => setCodingQuestions((prev) => [...prev, { ...defaultCoding }])
 
   const handleCreateTest = async (e) => {
     e.preventDefault()
@@ -52,14 +58,22 @@ const LeaveReviewPage = () => {
         leaveId: id,
         title: form.title,
         description: form.description,
-        passPercentage: Number(form.passPercentage),
-        timeLimit: Number(form.timeLimit),
-        mcqQuestions: mcqs.map((q) => ({
-          question: q.question,
-          options: q.options.split(',').map((o) => o.trim()).filter(Boolean),
-          correctAnswer: Number(q.correctAnswer),
-          marks: Number(q.marks)
-        }))
+        passMarks: Number(form.passMarks),
+        mcqQuestions: mcqs
+          .filter(q => q.question.trim())
+          .map((q) => ({
+            question: q.question,
+            options: q.options.split(',').map((o) => o.trim()).filter(Boolean),
+            correctAnswer: Number(q.correctAnswer),
+            marks: Number(q.marks)
+          })),
+        codingQuestions: codingQuestions
+          .filter(q => q.question.trim())
+          .map((q) => ({
+            question: q.question,
+            expectedOutput: q.expectedOutput,
+            marks: Number(q.marks)
+          }))
       }
 
       await createTest(payload)
@@ -101,21 +115,14 @@ const LeaveReviewPage = () => {
             onChange={(e) => setForm({ ...form, description: e.target.value })}
           />
 
-          <label>Pass Percentage</label>
+          <label>Pass Marks (minimum score to pass)</label>
           <input
             type="number"
-            value={form.passPercentage}
-            onChange={(e) => setForm({ ...form, passPercentage: e.target.value })}
+            value={form.passMarks}
+            onChange={(e) => setForm({ ...form, passMarks: e.target.value })}
           />
 
-          <label>Time Limit (minutes)</label>
-          <input
-            type="number"
-            value={form.timeLimit}
-            onChange={(e) => setForm({ ...form, timeLimit: e.target.value })}
-          />
-
-          <h4>MCQ Questions (Any type of question with multiple choice options)</h4>
+          <h4>MCQ Questions</h4>
           {mcqs.map((q, idx) => (
             <div key={idx} className="question-block">
               <label>Question {idx + 1}</label>
@@ -146,6 +153,35 @@ const LeaveReviewPage = () => {
           ))}
           <button type="button" className="btn ghost" onClick={addMcq}>
             Add MCQ Question
+          </button>
+
+          <h4>Coding Questions</h4>
+          {codingQuestions.map((q, idx) => (
+            <div key={idx} className="question-block">
+              <label>Coding Question {idx + 1}</label>
+              <textarea
+                rows="3"
+                value={q.question}
+                onChange={(e) => updateCoding(idx, 'question', e.target.value)}
+                placeholder="Enter your coding question"
+              />
+              <label>Expected Output (exact match required)</label>
+              <textarea
+                rows="2"
+                value={q.expectedOutput}
+                onChange={(e) => updateCoding(idx, 'expectedOutput', e.target.value)}
+                placeholder="Enter the expected output"
+              />
+              <label>Marks</label>
+              <input
+                type="number"
+                value={q.marks}
+                onChange={(e) => updateCoding(idx, 'marks', e.target.value)}
+              />
+            </div>
+          ))}
+          <button type="button" className="btn ghost" onClick={addCoding}>
+            Add Coding Question
           </button>
 
           {error && <div className="error">{error}</div>}

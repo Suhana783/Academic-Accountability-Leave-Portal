@@ -142,3 +142,45 @@ export const createAdmin = asyncHandler(async (req, res) => {
     }
   })
 })
+
+// @desc    Delete a user (Admin only)
+// @route   DELETE /api/auth/remove-user
+// @access  Private/Admin
+export const removeUser = asyncHandler(async (req, res) => {
+  const { email, password } = req.body
+
+  // Validate required fields
+  if (!email || !password) {
+    return errorResponse(res, 400, 'Please provide email and password')
+  }
+
+  // Find user with password field
+  const user = await User.findOne({ email }).select('+password')
+
+  if (!user) {
+    return errorResponse(res, 404, 'User not found')
+  }
+
+  // Verify password before deletion
+  const isPasswordCorrect = await user.comparePassword(password)
+
+  if (!isPasswordCorrect) {
+    return errorResponse(res, 401, 'Invalid password')
+  }
+
+  // Get user details before deletion
+  const deletedUserInfo = {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  }
+
+  // Delete the user
+  await User.deleteOne({ _id: user._id })
+
+  successResponse(res, 200, 'User removed successfully', {
+    user: deletedUserInfo
+  })
+})
+

@@ -5,50 +5,29 @@ const leaveSchema = new mongoose.Schema(
     student: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Student reference is required']
+      required: true
     },
     startDate: {
       type: Date,
-      required: [true, 'Start date is required']
+      required: true
     },
     endDate: {
       type: Date,
-      required: [true, 'End date is required'],
-      validate: {
-        validator: function (value) {
-          return value >= this.startDate
-        },
-        message: 'End date must be after or equal to start date'
-      }
+      required: true
     },
     reason: {
       type: String,
-      required: [true, 'Reason for leave is required'],
-      trim: true,
-      minlength: [10, 'Reason must be at least 10 characters long'],
-      maxlength: [500, 'Reason cannot exceed 500 characters']
+      required: true,
+      trim: true
     },
     status: {
       type: String,
-      enum: {
-        values: ['pending', 'test_assigned', 'approved', 'rejected'],
-        message: 'Status must be one of: pending, test_assigned, approved, rejected'
-      },
+      enum: ['pending', 'test_assigned', 'approved', 'rejected'],
       default: 'pending'
-    },
-    leaveType: {
-      type: String,
-      enum: ['sick', 'personal', 'emergency', 'vacation', 'other'],
-      default: 'personal'
-    },
-    totalDays: {
-      type: Number,
-      min: [1, 'Leave must be at least 1 day']
     },
     adminRemarks: {
       type: String,
       trim: true,
-      maxlength: [500, 'Admin remarks cannot exceed 500 characters']
     },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,

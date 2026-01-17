@@ -5,41 +5,29 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: [true, 'Name is required'],
-      trim: true,
-      minlength: [2, 'Name must be at least 2 characters long'],
-      maxlength: [100, 'Name cannot exceed 100 characters']
+      required: true,
+      trim: true
     },
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: true,
       unique: true,
       lowercase: true,
-      trim: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please provide a valid email address']
+      trim: true
     },
     password: {
       type: String,
-      required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters long'],
-      select: false // Don't return password by default in queries
+      required: true,
+      select: false
     },
     role: {
       type: String,
-      enum: {
-        values: ['student', 'admin'],
-        message: 'Role must be either student or admin'
-      },
+      enum: ['student', 'admin'],
       default: 'student'
     },
     department: {
       type: String,
       trim: true
-    },
-    leaveBalance: {
-      type: Number,
-      default: 20, // Default annual leave balance
-      min: [0, 'Leave balance cannot be negative']
     },
     isActive: {
       type: Boolean,
@@ -47,7 +35,7 @@ const userSchema = new mongoose.Schema(
     }
   },
   {
-    timestamps: true // Adds createdAt and updatedAt fields
+    timestamps: true
   }
 )
 

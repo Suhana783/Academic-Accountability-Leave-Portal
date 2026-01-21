@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getLeave } from '../services/leaveService'
-import { createTest, getTestByLeave } from '../services/testService'
+import { 
+  createTest, 
+  getTestByLeave, 
+  generateAutomaticTest,
+  getAvailableSubjects,
+  getQuestionCount 
+} from '../services/testService'
 
 const defaultMcq = { question: '', options: '', correctAnswer: 0, marks: 1 }
 const defaultCoding = { question: '', expectedOutput: '', marks: 1 }
@@ -13,23 +19,43 @@ const LeaveReviewPage = () => {
   const [existingTest, setExistingTest] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [showAutoGenerate, setShowAutoGenerate] = useState(false)
+  const [availableSubjects, setAvailableSubjects] = useState([])
+  const [questionCount, setQuestionCount] = useState(0)
+  
   const [form, setForm] = useState({
     title: 'Assessment for Leave',
     description: 'Please complete this test to process your leave request.',
-    passMarks: 0
+    passMarks: 0,
+    duration: 3600 // Default 1 hour
   })
+  
+  const [autoForm, setAutoForm] = useState({
+    subject: '',
+    difficulty: 'Medium',
+    numberOfQuestions: 5,
+    totalMarks: 20,
+    passingPercentage: 60,
+    duration: 30 // minutes
+  })
+  
   const [mcqs, setMcqs] = useState([defaultMcq])
   const [codingQuestions, setCodingQuestions] = useState([defaultCoding])
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [leaveData, test] = await Promise.all([
+        const [leaveData, test, subjects] = await Promise.all([
           getLeave(id),
-          getTestByLeave(id).catch(() => null)
+          getTestByLeave(id).catch(() => null),
+          getAvailableSubjects().catch(() => [])
         ])
         setLeave(leaveData)
         setExistingTest(test)
+        setAvailableSubjects(subjects)
+        if (subjects.length > 0) {
+          setAutoForm(prev => ({ ...prev, subject: subjects[0] }))
+        }
       } catch (err) {
         setError(err.message)
       } finally {
@@ -38,6 +64,21 @@ const LeaveReviewPage = () => {
     }
     fetchData()
   }, [id])
+
+  // Fetch question count when subject or difficulty changes
+  useEffect(() => {
+    const fetchCount = async () => {
+      if (autoForm.subject && autoForm.difficulty) {
+        try {
+          const count = await getQuestionCount(autoForm.subject, autoForm.difficulty)
+          setQuestionCount(count)
+        } catch (err) {
+          setQuestionCount(0)
+        }
+      }
+    }
+    fetchCount()
+  }, [autoForm.subject, autoForm.difficulty])
 
   const updateMcq = (index, field, value) => {
     setMcqs((prev) => prev.map((item, i) => (i === index ? { ...item, [field]: value } : item)))
@@ -59,6 +100,7 @@ const LeaveReviewPage = () => {
         title: form.title,
         description: form.description,
         passMarks: Number(form.passMarks),
+        duration: Number(form.duration),
         mcqQuestions: mcqs
           .filter(q => q.question.trim())
           .map((q) => ({
@@ -77,6 +119,33 @@ const LeaveReviewPage = () => {
       }
 
       await createTest(payload)
+      navigate('/admin')
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const handleAutoGenerateTest = async (e) => {
+    e.preventDefault()
+    setError('')
+    
+    if (autoForm.numberOfQuestions > questionCount) {
+      setError(`Only ${questionCount} questions available. Please reduce the number of questions or choose different criteria.`)
+      return
+    }
+    
+    try {
+      const payload = {
+        leaveId: id,
+        subject: autoForm.subject,
+        difficulty: autoForm.difficulty,
+        numberOfQuestions: Number(autoForm.numberOfQuestions),
+        totalMarks: Number(autoForm.totalMarks),
+        passingPercentage: Number(autoForm.passingPercentage),
+        duration: Number(autoForm.duration) * 60 // Convert minutes to seconds
+      }
+
+      await generateAutomaticTest(payload)
       navigate('/admin')
     } catch (err) {
       setError(err.message)
@@ -103,8 +172,110 @@ const LeaveReviewPage = () => {
           </button>
         </div>
       ) : (
-        <form className="form" onSubmit={handleCreateTest}>
-          <h3>Create Test</h3>
+        <>
+          {/* Toggle Buttons */}
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+            <button 
+              className={!showAutoGenerate ? 'btn' : 'btn ghost'}
+              type="button"
+              onClick={() => setShowAutoGenerate(false)}
+            >
+              📝 Create Manually
+            </button>
+            <button 
+              className={showAutoGenerate ? 'btn' : 'btn ghost'}
+              type="button"
+              onClick={() => setShowAutoGenerate(true)}
+            >
+              🤖 Generate Automatically
+            </button>
+          </div>
+
+          {error && <div className="error">{error}</div>}
+
+          {showAutoGenerate ? (
+            // AUTOMATIC TEST GENERATION FORM
+            <form className="form" onSubmit={handleAutoGenerateTest}>
+              <h3>🤖 Automatic Test Generation</h3>
+              
+              <label>Subject / Topic *</label>
+              <input
+                type="text"
+                value={autoForm.subject}
+                onChange={(e) => setAutoForm({ ...autoForm, subject: e.target.value })}
+                placeholder="e.g., Data Structures, Java, DBMS, Web Development"
+                required
+              />
+              {availableSubjects.length > 0 && (
+                <p className="muted" style={{ marginTop: '-10px', fontSize: '12px' }}>
+                  Available: {availableSubjects.join(', ')}
+                </p>
+              )}
+
+              <label>Difficulty Level *</label>
+              <select 
+                value={autoForm.difficulty} 
+                onChange={(e) => setAutoForm({ ...autoForm, difficulty: e.target.value })}
+                required
+              >
+                <option value="Easy">Easy</option>
+                <option value="Medium">Medium</option>
+                <option value="Hard">Hard</option>
+              </select>
+
+              {questionCount > 0 && (
+                <p className="muted" style={{ marginTop: '-10px' }}>
+                  ℹ️ {questionCount} questions available for this criteria
+                </p>
+              )}
+
+              <label>Number of Questions *</label>
+              <input
+                type="number"
+                value={autoForm.numberOfQuestions}
+                onChange={(e) => setAutoForm({ ...autoForm, numberOfQuestions: Number(e.target.value) })}
+                min="1"
+                max={questionCount || 100}
+                required
+              />
+
+              <label>Total Marks *</label>
+              <input
+                type="number"
+                value={autoForm.totalMarks}
+                onChange={(e) => setAutoForm({ ...autoForm, totalMarks: Number(e.target.value) })}
+                min="1"
+                required
+              />
+
+              <label>Passing Percentage *</label>
+              <input
+                type="number"
+                value={autoForm.passingPercentage}
+                onChange={(e) => setAutoForm({ ...autoForm, passingPercentage: Number(e.target.value) })}
+                min="1"
+                max="100"
+                required
+              />
+
+              <label>Test Duration (minutes) *</label>
+              <input
+                type="number"
+                value={autoForm.duration}
+                onChange={(e) => setAutoForm({ ...autoForm, duration: Number(e.target.value) })}
+                min="5"
+                max="180"
+                required
+              />
+
+              <button className="btn" type="submit">
+                🚀 Generate Test Automatically
+              </button>
+            </form>
+          ) : (
+            // MANUAL TEST CREATION FORM
+            <form className="form" onSubmit={handleCreateTest}>
+              <h3>Create Test Manually</h3>
           <label>Title</label>
           <input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
 
@@ -120,6 +291,15 @@ const LeaveReviewPage = () => {
             type="number"
             value={form.passMarks}
             onChange={(e) => setForm({ ...form, passMarks: e.target.value })}
+          />
+
+          <label>Test Duration (in minutes)</label>
+          <input
+            type="number"
+            value={Math.floor(form.duration / 60)}
+            onChange={(e) => setForm({ ...form, duration: Number(e.target.value) * 60 })}
+            min="5"
+            max="180"
           />
 
           <h4>MCQ Questions</h4>
@@ -184,9 +364,10 @@ const LeaveReviewPage = () => {
             Add Coding Question
           </button>
 
-          {error && <div className="error">{error}</div>}
           <button className="btn" type="submit">Create Test</button>
         </form>
+          )}
+        </>
       )}
     </div>
   )

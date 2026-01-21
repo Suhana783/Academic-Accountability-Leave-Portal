@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { getAllResults, getResultsByStudent } from '../services/testService'
+import { getAllResults, getResultsByStudent, deleteTestResult } from '../services/testService'
 
 const AdminResultsPage = () => {
   const [results, setResults] = useState([])
@@ -8,28 +8,30 @@ const AdminResultsPage = () => {
   const [loading, setLoading] = useState(true)
   const [statistics, setStatistics] = useState(null)
 
-  const loadAll = async () => {
+  const loadAllResults = async () => {
     try {
       setError('')
       setLoading(true)
-      setFilter('')
       setStatistics(null)
       const data = await getAllResults()
       setResults(data)
     } catch (err) {
       setError(err.message)
+      setResults([])
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    loadAll()
+    loadAllResults()
   }, [])
 
   const handleFilter = async (e) => {
     e.preventDefault()
-    if (!filter.trim()) return loadAll()
+    if (!filter.trim()) {
+      return loadAllResults()
+    }
     try {
       setLoading(true)
       setError('')
@@ -40,14 +42,39 @@ const AdminResultsPage = () => {
     } catch (err) {
       setError(err.message)
       setResults([])
+      setStatistics(null)
     } finally {
       setLoading(false)
     }
   }
 
-  const handleReset = async (e) => {
-    e.preventDefault()
-    await loadAll()
+  const handleDelete = async (resultId) => {
+    if (!confirm('Are you sure you want to delete this test result?')) {
+      return
+    }
+    try {
+      await deleteTestResult(resultId)
+      // Remove the deleted result from the current list
+      setResults(results.filter(r => r._id !== resultId))
+      // Recalculate statistics if they exist
+      if (statistics) {
+        const updatedResults = results.filter(r => r._id !== resultId)
+        const totalTests = updatedResults.length
+        const passedTests = updatedResults.filter(r => r.passed).length
+        const failedTests = totalTests - passedTests
+        const averagePercentage = totalTests > 0
+          ? Math.round(updatedResults.reduce((sum, r) => sum + r.percentage, 0) / totalTests)
+          : 0
+        setStatistics({
+          totalTests,
+          passedTests,
+          failedTests,
+          averagePercentage
+        })
+      }
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (
@@ -58,16 +85,13 @@ const AdminResultsPage = () => {
           <div style={{ flex: 1 }}>
             <label>Filter by Student ID</label>
             <input
-              placeholder="Enter student ID to filter"
+              placeholder="Enter student ID to filter (leave empty to see all)"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               type="text"
             />
           </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button className="btn" type="submit">Filter</button>
-            <button className="btn ghost" type="button" onClick={handleReset}>Reset</button>
-          </div>
+          <button className="btn" type="submit">Filter</button>
         </div>
       </form>
 
@@ -88,9 +112,22 @@ const AdminResultsPage = () => {
           <div key={r._id} className="list-item">
             <div>
               <strong>{r.student?.name}</strong> — {r.test?.title}
-              <div className="muted">{r.percentage}% | {r.passed ? 'Passed' : 'Failed'}</div>
+              <div className="muted">
+                {r.percentage}% | {r.passed ? 'Passed' : 'Failed'} | 
+                Time: {Math.floor((r.timeTaken || 0) / 60)}m
+                {r.tabSwitchCount > 0 && ` | ⚠️ Switches: ${r.tabSwitchCount}`}
+              </div>
             </div>
-            <div className="badge">{r.leave?.status}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div className="badge">{r.leave?.status}</div>
+              <button 
+                className="btn ghost" 
+                style={{ padding: '4px 12px', fontSize: '14px' }}
+                onClick={() => handleDelete(r._id)}
+              >
+                Delete
+              </button>
+            </div>
           </div>
         ))}
         {results.length === 0 && !loading && <p>No results found.</p>}

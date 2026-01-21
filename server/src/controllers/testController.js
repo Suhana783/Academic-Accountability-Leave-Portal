@@ -4,6 +4,7 @@ import TestResult from '../models/TestResult.js'
 import { successResponse, errorResponse } from '../utils/responseHelper.js'
 import { asyncHandler } from '../middleware/errorHandler.js'
 import evaluationService from '../services/evaluationService.js'
+import automaticTestService from '../services/automaticTestService.js'
 
 // @desc    Create test for a leave request (Admin)
 // @route   POST /api/test
@@ -15,7 +16,8 @@ export const createTest = asyncHandler(async (req, res) => {
     description,
     mcqQuestions,
     codingQuestions,
-    passMarks
+    passMarks,
+    duration
   } = req.body
 
   // Validate required fields
@@ -43,7 +45,8 @@ export const createTest = asyncHandler(async (req, res) => {
     description,
     mcqQuestions: mcqQuestions || [],
     codingQuestions: codingQuestions || [],
-    passMarks: passMarks || 0
+    passMarks: passMarks || 0,
+    duration: duration || 3600
   })
 
   // Update leave status to test_assigned
@@ -289,13 +292,13 @@ export const getMyResults = asyncHandler(async (req, res) => {
 })
 
 // @desc    Get all test results (Admin)
-// @route   GET /api/test/results
+// @route   GET /api/test/results/all
 // @access  Private (Admin)
 export const getAllResults = asyncHandler(async (req, res) => {
   const results = await TestResult.find()
     .populate('test', 'title totalMarks passPercentage')
     .populate('student', 'name email department')
-    .populate('leave', 'startDate endDate reason')
+    .populate('leave', 'startDate endDate reason status')
     .sort('-submittedAt')
 
   successResponse(res, 200, 'Test results retrieved successfully', {
@@ -312,12 +315,27 @@ export const getResultsByStudent = asyncHandler(async (req, res) => {
 
   const results = await TestResult.find({ student: studentId })
     .populate('test', 'title totalMarks passPercentage')
-    .populate('leave', 'startDate endDate reason')
+    .populate('student', 'name email department')
+    .populate('leave', 'startDate endDate reason status')
     .sort('-submittedAt')
+
+  // Calculate statistics
+  const totalTests = results.length
+  const passedTests = results.filter(r => r.passed).length
+  const failedTests = totalTests - passedTests
+  const averagePercentage = totalTests > 0
+    ? Math.round(results.reduce((sum, r) => sum + r.percentage, 0) / totalTests)
+    : 0
 
   successResponse(res, 200, 'Student test results retrieved successfully', {
     count: results.length,
-    results
+    results,
+    statistics: {
+      totalTests,
+      passedTests,
+      failedTests,
+      averagePercentage
+    }
   })
 })
 
@@ -346,3 +364,117 @@ export const getMyStatistics = asyncHandler(async (req, res) => {
     }
   })
 })
+
+// @desc    Delete test result (Admin)
+// @route   DELETE /api/test/results/:resultId
+// @access  Private (Admin)
+export const deleteTestResult = asyncHandler(async (req, res) => {
+  const { resultId } = req.params
+
+  const result = await TestResult.findById(resultId)
+
+  if (!result) {
+    return errorResponse(res, 404, 'Test result not found')
+  }
+
+  await TestResult.findByIdAndDelete(resultId)
+
+  successResponse(res, 200, 'Test result deleted successfully', null)
+})
+
+// ============================================
+// AUTOMATIC TEST GENERATION
+// ============================================
+
+// @desc    Generate test automatically based on criteria
+// @route   POST /api/test/auto-generate
+// @access  Private (Admin)
+export const generateAutomaticTest = asyncHandler(async (req, res) => {
+  const {
+    leaveId,
+    subject,
+    difficulty,
+    numberOfQuestions,
+    totalMarks,
+    passingPercentage,
+    duration,
+    title,
+    description
+  } = req.body
+
+  // Validate required fields
+  if (!leaveId || !subject || !difficulty || !numberOfQuestions || !totalMarks) {
+    return errorResponse(
+      res,
+      400,
+      'Please provide all required fields: leaveId, subject, difficulty, numberOfQuestions, totalMarks'
+    )
+  }
+
+  try {
+    // Generate test data using service
+    const testData = await automaticTestService.generateTest({
+      leaveId,
+      subject,
+      difficulty,
+      numberOfQuestions: Number(numberOfQuestions),
+      totalMarks: Number(totalMarks),
+      passingPercentage: Number(passingPercentage) || 60,
+      duration: Number(duration) || 3600,
+      title,
+      description
+    })
+
+    // Create test with admin as creator
+    const test = await Test.create({
+      ...testData,
+      createdBy: req.user._id
+    })
+
+    // Update leave status to test_assigned
+    const leave = await Leave.findById(leaveId)
+    leave.status = 'test_assigned'
+    leave.reviewedBy = req.user._id
+    leave.reviewedAt = new Date()
+    await leave.save()
+
+    // Populate references
+    await test.populate('leave')
+    await test.populate('createdBy', 'name email')
+
+    successResponse(res, 201, 'Test generated and assigned successfully', { test })
+  } catch (error) {
+    return errorResponse(res, 400, error.message)
+  }
+})
+
+// @desc    Get available subjects from question bank
+// @route   GET /api/test/subjects
+// @access  Private (Admin)
+export const getAvailableSubjects = asyncHandler(async (req, res) => {
+  try {
+    const subjects = await automaticTestService.getAvailableSubjects()
+    successResponse(res, 200, 'Subjects retrieved successfully', { subjects })
+  } catch (error) {
+    return errorResponse(res, 400, error.message)
+  }
+})
+
+// @desc    Get question count by criteria
+// @route   GET /api/test/question-count
+// @access  Private (Admin)
+export const getQuestionCount = asyncHandler(async (req, res) => {
+  const { subject, difficulty } = req.query
+
+  if (!subject || !difficulty) {
+    return errorResponse(res, 400, 'Please provide subject and difficulty')
+  }
+
+  try {
+    const count = await automaticTestService.getQuestionCount(subject, difficulty)
+    successResponse(res, 200, 'Question count retrieved successfully', { count })
+  } catch (error) {
+    return errorResponse(res, 400, error.message)
+  }
+})
+

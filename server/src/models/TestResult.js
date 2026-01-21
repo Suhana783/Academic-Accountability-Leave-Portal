@@ -78,9 +78,18 @@ const testResultSchema = new mongoose.Schema(
       type: Number,
       default: 0
     },
+    tabSwitchCount: {
+      type: Number,
+      default: 0,
+      comment: 'Number of times student switched tabs during test'
+    },
     feedback: {
       type: String,
       trim: true
+    },
+    percentage: {
+      type: Number,
+      default: 0
     }
   },
   {

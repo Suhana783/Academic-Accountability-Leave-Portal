@@ -61,6 +61,7 @@ class EvaluationService {
       const totalScore = mcqScore + codingScore
       const maxScore = test.totalMarks
       const passed = totalScore >= test.passMarks
+      const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
 
       // Generate feedback
       const feedback = generateFeedback(totalScore, maxScore, passed)
@@ -78,9 +79,11 @@ class EvaluationService {
         maxScore,
         passed,
         passMarks: test.passMarks,
+        percentage,
         feedback,
         submittedAt: new Date(),
-        timeTaken: submission.timeTaken || 0
+        timeTaken: submission.timeTaken || 0,
+        tabSwitchCount: submission.tabSwitchCount || 0
       }
 
       return resultData

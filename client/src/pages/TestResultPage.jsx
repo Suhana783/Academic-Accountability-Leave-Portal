@@ -37,6 +37,10 @@ const TestResultPage = () => {
           <div>{result.totalScore} / {result.maxScore}</div>
         </div>
         <div className="tile">
+          <strong>Percentage</strong>
+          <div>{result.percentage || 0}%</div>
+        </div>
+        <div className="tile">
           <strong>Status</strong>
           <div className={result.passed ? 'badge success' : 'badge danger'}>
             {result.passed ? 'PASSED' : 'FAILED'}
@@ -46,6 +50,21 @@ const TestResultPage = () => {
           <strong>Leave Status</strong>
           <div>{result.leave?.status}</div>
         </div>
+      </div>
+
+      <div className="grid" style={{ marginTop: '10px' }}>
+        <div className="tile">
+          <strong>Time Taken</strong>
+          <div>{Math.floor((result.timeTaken || 0) / 60)} min {(result.timeTaken || 0) % 60} sec</div>
+        </div>
+        {result.tabSwitchCount !== undefined && (
+          <div className="tile">
+            <strong>Tab Switches</strong>
+            <div style={{ color: result.tabSwitchCount > 5 ? '#e67700' : 'inherit' }}>
+              {result.tabSwitchCount} {result.tabSwitchCount > 5 && '⚠️'}
+            </div>
+          </div>
+        )}
       </div>
 
       {result.feedback && (

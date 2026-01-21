@@ -33,10 +33,26 @@ const MyResultsPage = () => {
       {error && <p className="error">{error}</p>}
       {stats && (
         <div className="grid">
-          <div className="tile">Total Tests: {stats.totalTests}</div>
-          <div className="tile">Passed: {stats.passedTests}</div>
-          <div className="tile">Failed: {stats.failedTests}</div>
-          <div className="tile">Avg %: {stats.averagePercentage}</div>
+          <div className="tile">
+            <strong>Total Tests</strong>
+            <div>{stats.totalTests}</div>
+          </div>
+          <div className="tile">
+            <strong>Passed</strong>
+            <div style={{ color: '#4caf50' }}>{stats.passedTests}</div>
+          </div>
+          <div className="tile">
+            <strong>Failed</strong>
+            <div style={{ color: '#f44336' }}>{stats.failedTests}</div>
+          </div>
+          <div className="tile">
+            <strong>Pass Rate</strong>
+            <div>{stats.passRate}%</div>
+          </div>
+          <div className="tile">
+            <strong>Average Score</strong>
+            <div>{stats.averageScore}%</div>
+          </div>
         </div>
       )}
       <div className="list">
@@ -44,9 +60,13 @@ const MyResultsPage = () => {
           <div key={r._id} className="list-item">
             <div>
               <strong>{r.test?.title}</strong>
-              <div className="muted">{r.percentage}% - {r.passed ? 'Passed' : 'Failed'}</div>
+              <div className="muted">
+                Score: {r.totalScore}/{r.maxScore} ({r.percentage}%) | 
+                {r.passed ? ' ✓ Passed' : ' ✗ Failed'} | 
+                Time: {Math.floor((r.timeTaken || 0) / 60)}m
+              </div>
             </div>
-            <Link className="btn ghost" to={`/test/${r.test?._id}/result`}>View</Link>
+            <Link className="btn ghost" to={`/test/${r.test?._id}/result`}>View Details</Link>
           </div>
         ))}
         {results.length === 0 && !loading && <p>No results yet.</p>}

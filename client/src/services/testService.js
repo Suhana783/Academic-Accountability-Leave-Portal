@@ -52,3 +52,23 @@ export const getResultsByStudent = async (studentId) => {
     statistics: data?.data?.statistics
   }
 }
+
+export const deleteTestResult = async (resultId) => {
+  const { data } = await api.delete(`/test/results/${resultId}`)
+  return data
+}
+
+export const generateAutomaticTest = async (payload) => {
+  const { data } = await api.post('/test/auto-generate', payload)
+  return data?.data?.test
+}
+
+export const getAvailableSubjects = async () => {
+  const { data } = await api.get('/test/subjects')
+  return data?.data?.subjects || []
+}
+
+export const getQuestionCount = async (subject, difficulty) => {
+  const { data } = await api.get(`/test/question-count?subject=${subject}&difficulty=${difficulty}`)
+  return data?.data?.count || 0
+}

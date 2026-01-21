@@ -73,6 +73,11 @@ const testSchema = new mongoose.Schema(
       required: true,
       default: 0
     },
+    duration: {
+      type: Number,
+      default: 3600, // Default 1 hour in seconds
+      comment: 'Test duration in seconds'
+    },
     isActive: {
       type: Boolean,
       default: true

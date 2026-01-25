@@ -5,7 +5,8 @@ import {
   getLeaveById,
   getAllLeaves,
   updateLeaveStatus,
-  deleteLeave
+  deleteLeave,
+  updateMyLeave
 } from '../controllers/leaveController.js'
 import { protect, adminOnly, studentOnly } from '../middleware/authMiddleware.js'
 
@@ -15,6 +16,7 @@ const router = express.Router()
 router.post('/', protect, studentOnly, applyLeave)
 router.get('/my-leaves', protect, studentOnly, getMyLeaves)
 router.delete('/:id', protect, studentOnly, deleteLeave)
+router.put('/:id', protect, studentOnly, updateMyLeave)
 
 // Admin routes
 router.get('/', protect, adminOnly, getAllLeaves)

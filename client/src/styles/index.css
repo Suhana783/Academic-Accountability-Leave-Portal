@@ -52,7 +52,6 @@ code {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
-  min-height: 100vh;
 }
 
 .app-header {
@@ -116,7 +115,7 @@ code {
 }
 
 .app-main {
-  min-height: 60vh;
+  min-height: auto;
 }
 
 /* Cards & Sections */

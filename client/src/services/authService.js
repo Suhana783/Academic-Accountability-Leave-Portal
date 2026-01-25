@@ -26,3 +26,14 @@ export const removeUser = async (email, password) => {
   })
   return data?.data
 }
+
+export const getAllStudents = async () => {
+  const { data } = await api.get('/auth/students')
+  return data?.data?.students || []
+}
+
+export const getAllAdmins = async () => {
+  const { data } = await api.get('/auth/admins')
+  return data?.data?.admins || []
+}
+

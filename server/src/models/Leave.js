@@ -20,6 +20,11 @@ const leaveSchema = new mongoose.Schema(
       required: true,
       trim: true
     },
+    leaveType: {
+      type: String,
+      enum: ['personal', 'sick', 'emergency', 'vacation', 'other'],
+      default: 'personal'
+    },
     status: {
       type: String,
       enum: ['pending', 'test_assigned', 'approved', 'rejected'],

@@ -34,6 +34,11 @@ const LeaveDetailPage = () => {
       <p><strong>Status:</strong> {leave.status}</p>
       <p><strong>Type:</strong> {leave.leaveType}</p>
       {leave.adminRemarks && <p><strong>Admin Remarks:</strong> {leave.adminRemarks}</p>}
+      {leave.status === 'pending' && (
+        <p>
+          <a className="btn" href={`/leave/${leave._id}/edit`}>Edit Leave</a>
+        </p>
+      )}
     </div>
   )
 }

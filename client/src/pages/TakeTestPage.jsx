@@ -1,10 +1,12 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getTestById, submitTest } from '../services/testService'
+import { useAuth } from '../context/AuthContext'
 
 const TakeTestPage = () => {
   const { id } = useParams()
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [test, setTest] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -16,6 +18,9 @@ const TakeTestPage = () => {
   const [showWarning, setShowWarning] = useState(false)
   const startTimeRef = useRef(Date.now())
   const timerRef = useRef(null)
+  const lastSwitchAtRef = useRef(0)
+  const isSubmittingRef = useRef(false)
+  const isAdmin = user?.role === 'admin'
 
   // Shuffle array function
   const shuffleArray = (array) => {
@@ -70,7 +75,9 @@ const TakeTestPage = () => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
           clearInterval(timerRef.current)
-          handleAutoSubmit()
+          if (!isAdmin) {
+            handleAutoSubmit()
+          }
           return 0
         }
         return prev - 1
@@ -80,23 +87,29 @@ const TakeTestPage = () => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
     }
-  }, [test])
+  }, [test, isAdmin])
 
-  // Tab switch detection (anti-cheating)
+  // Tab switch detection (anti-cheating) with debounce and submission guard
   useEffect(() => {
+    const incrementSwitchIfNeeded = () => {
+      if (isSubmittingRef.current) return
+      const now = Date.now()
+      if (now - lastSwitchAtRef.current < 1200) return
+      lastSwitchAtRef.current = now
+      setTabSwitchCount((prev) => prev + 1)
+      setShowWarning(true)
+      setTimeout(() => setShowWarning(false), 3000)
+    }
+
     const handleVisibilityChange = () => {
-      if (document.hidden && !isSubmitting) {
-        setTabSwitchCount((prev) => prev + 1)
-        setShowWarning(true)
-        setTimeout(() => setShowWarning(false), 3000)
+      if (document.hidden) {
+        incrementSwitchIfNeeded()
       }
     }
 
     const handleBlur = () => {
-      if (!isSubmitting) {
-        setTabSwitchCount((prev) => prev + 1)
-        setShowWarning(true)
-        setTimeout(() => setShowWarning(false), 3000)
+      if (!document.hidden) {
+        incrementSwitchIfNeeded()
       }
     }
 
@@ -107,7 +120,7 @@ const TakeTestPage = () => {
       document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.removeEventListener('blur', handleBlur)
     }
-  }, [isSubmitting])
+  }, [])
 
   // Format time as MM:SS
   const formatTime = (seconds) => {
@@ -117,8 +130,9 @@ const TakeTestPage = () => {
   }
 
   const handleAutoSubmit = async () => {
-    if (isSubmitting) return
+    if (isSubmitting || isAdmin) return
     setIsSubmitting(true)
+    isSubmittingRef.current = true
     const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000)
     
     try {
@@ -133,6 +147,7 @@ const TakeTestPage = () => {
     } catch (err) {
       setError(err.message)
       setIsSubmitting(false)
+      isSubmittingRef.current = false
     }
   }
 
@@ -154,8 +169,9 @@ const TakeTestPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (isSubmitting) return
+    if (isSubmitting || isAdmin) return
     setIsSubmitting(true)
+    isSubmittingRef.current = true
     setError('')
     
     const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000)
@@ -172,6 +188,7 @@ const TakeTestPage = () => {
     } catch (err) {
       setError(err.message)
       setIsSubmitting(false)
+      isSubmittingRef.current = false
     }
   }
 
@@ -183,35 +200,51 @@ const TakeTestPage = () => {
 
   return (
     <div className="card">
-      {/* Timer Display */}
-      <div style={{ 
-        position: 'sticky', 
-        top: 0, 
-        background: timeIsLow ? '#fee' : '#e8f4ff', 
-        padding: '12px', 
-        borderRadius: '6px',
-        marginBottom: '20px',
-        border: timeIsLow ? '2px solid #f44' : '2px solid #4a90e2',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        zIndex: 100
-      }}>
-        <div>
-          <strong style={{ color: timeIsLow ? '#d00' : '#333' }}>
-            Time Remaining: {formatTime(timeRemaining)}
-          </strong>
-          {timeIsLow && <span style={{ marginLeft: '10px', color: '#d00' }}>⚠️ Hurry Up!</span>}
+      {isAdmin && (
+        <div style={{
+          background: '#e0f2fe',
+          border: '1px solid #60a5fa',
+          color: '#1d4ed8',
+          padding: '12px 14px',
+          borderRadius: '8px',
+          marginBottom: '16px',
+          fontWeight: 600
+        }}>
+          Admin view: test is read-only. Submission and timer auto-submit are disabled.
         </div>
-        {tabSwitchCount > 0 && (
-          <div style={{ color: '#e67700' }}>
-            ⚠️ Tab Switches: {tabSwitchCount}
+      )}
+
+      {/* Timer Display (hidden for admin) */}
+      {!isAdmin && (
+        <div style={{ 
+          position: 'sticky', 
+          top: 0, 
+          background: timeIsLow ? '#fee' : '#e8f4ff', 
+          padding: '12px', 
+          borderRadius: '6px',
+          marginBottom: '20px',
+          border: timeIsLow ? '2px solid #f44' : '2px solid #4a90e2',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          zIndex: 100
+        }}>
+          <div>
+            <strong style={{ color: timeIsLow ? '#d00' : '#333' }}>
+              Time Remaining: {formatTime(timeRemaining)}
+            </strong>
+            {timeIsLow && <span style={{ marginLeft: '10px', color: '#d00' }}>⚠️ Hurry Up!</span>}
           </div>
-        )}
-      </div>
+          {tabSwitchCount > 0 && (
+            <div style={{ color: '#e67700' }}>
+              ⚠️ Tab Switches: {tabSwitchCount}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Warning for tab switch */}
-      {showWarning && (
+      {!isAdmin && showWarning && (
         <div style={{
           position: 'fixed',
           top: '50%',
@@ -281,13 +314,25 @@ const TakeTestPage = () => {
         )}
 
         {error && <div className="error">{error}</div>}
-        <button 
-          className="btn" 
-          type="submit" 
-          disabled={isSubmitting || timeRemaining === 0}
-        >
-          {isSubmitting ? 'Submitting...' : 'Submit Test'}
-        </button>
+        {!isAdmin && (
+          <button 
+            className="btn" 
+            type="submit" 
+            disabled={isSubmitting || timeRemaining === 0}
+          >
+            {isSubmitting ? 'Submitting...' : 'Submit Test'}
+          </button>
+        )}
+        {isAdmin && (
+          <button
+            type="button"
+            className="btn ghost"
+            onClick={() => navigate(-1)}
+            style={{ marginTop: '8px' }}
+          >
+            ← Back
+          </button>
+        )}
       </form>
     </div>
   )

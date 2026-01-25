@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { getAllResults, getResultsByStudent, deleteTestResult } from '../services/testService'
 
 const AdminResultsPage = () => {
@@ -119,6 +120,13 @@ const AdminResultsPage = () => {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <Link 
+                to={`/test/${r.test?._id}/result`} 
+                className="btn" 
+                style={{ padding: '6px 14px', fontSize: '14px' }}
+              >
+                View
+              </Link>
               <div className="badge">{r.leave?.status}</div>
               <button 
                 className="btn ghost" 

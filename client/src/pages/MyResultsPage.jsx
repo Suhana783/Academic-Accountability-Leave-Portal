@@ -32,28 +32,47 @@ const MyResultsPage = () => {
       {loading && <p className="muted">Loading...</p>}
       {error && <p className="error">{error}</p>}
       {stats && (
+        (() => {
+          const assignedTests = stats.assignedTests ?? stats.totalTests ?? 0
+          const submittedTests = stats.submittedTests ?? stats.totalTests ?? 0
+          const passedTests = stats.passedTests ?? 0
+          const failedTests = stats.failedTests ?? Math.max(submittedTests - passedTests, 0)
+          const pendingTests = stats.pendingTests ?? Math.max(assignedTests - submittedTests, 0)
+          const passRate = stats.passRate ?? (submittedTests > 0 ? Math.round((passedTests / submittedTests) * 100) : 0)
+
+          return (
         <div className="grid">
           <div className="tile">
             <strong>Total Tests</strong>
-            <div>{stats.totalTests}</div>
+            <div>{assignedTests}</div>
+          </div>
+          <div className="tile">
+            <strong>Completed</strong>
+            <div>{submittedTests}</div>
+          </div>
+          <div className="tile">
+            <strong>Pending</strong>
+            <div>{pendingTests}</div>
           </div>
           <div className="tile">
             <strong>Passed</strong>
-            <div style={{ color: '#4caf50' }}>{stats.passedTests}</div>
+            <div style={{ color: '#4caf50' }}>{passedTests}</div>
           </div>
           <div className="tile">
             <strong>Failed</strong>
-            <div style={{ color: '#f44336' }}>{stats.failedTests}</div>
+            <div style={{ color: '#f44336' }}>{failedTests}</div>
           </div>
           <div className="tile">
             <strong>Pass Rate</strong>
-            <div>{stats.passRate}%</div>
+            <div>{passRate}%</div>
           </div>
           <div className="tile">
             <strong>Average Score</strong>
             <div>{stats.averageScore}%</div>
           </div>
         </div>
+          )
+        })()
       )}
       <div className="list">
         {results.map((r) => (

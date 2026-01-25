@@ -184,3 +184,42 @@ export const removeUser = asyncHandler(async (req, res) => {
   })
 })
 
+// @desc    Get all students (Admin only)
+// @route   GET /api/auth/students
+// @access  Private/Admin
+export const getAllStudents = asyncHandler(async (req, res) => {
+  const students = await User.find({ role: 'student' }).select('+password')
+
+  successResponse(res, 200, 'Students retrieved successfully', {
+    students: students.map(s => ({
+      id: s._id,
+      name: s.name,
+      email: s.email,
+      password: s.password,
+      department: s.department,
+      leaveBalance: s.leaveBalance,
+      isActive: s.isActive,
+      createdAt: s.createdAt
+    }))
+  })
+})
+
+// @desc    Get all admins (Admin only)
+// @route   GET /api/auth/admins
+// @access  Private/Admin
+export const getAllAdmins = asyncHandler(async (req, res) => {
+  const admins = await User.find({ role: 'admin' }).select('+password')
+
+  successResponse(res, 200, 'Admins retrieved successfully', {
+    admins: admins.map(a => ({
+      id: a._id,
+      name: a.name,
+      email: a.email,
+      password: a.password,
+      department: a.department,
+      isActive: a.isActive,
+      createdAt: a.createdAt
+    }))
+  })
+});
+

@@ -122,6 +122,63 @@ export const getAllLeaves = asyncHandler(async (req, res) => {
   })
 })
 
+// @desc    Update own pending leave (Student)
+// @route   PUT /api/leave/:id
+// @access  Private (Student - only when pending)
+export const updateMyLeave = asyncHandler(async (req, res) => {
+  const { startDate, endDate, reason, leaveType } = req.body
+
+  const leave = await Leave.findById(req.params.id)
+
+  if (!leave) {
+    return errorResponse(res, 404, 'Leave request not found')
+  }
+
+  // Ensure only the owner can edit
+  if (leave.student.toString() !== req.user._id.toString()) {
+    return errorResponse(res, 403, 'Not authorized to edit this leave request')
+  }
+
+  // Only pending leaves can be edited
+  if (leave.status !== 'pending') {
+    return errorResponse(res, 400, 'Only pending leave requests can be edited')
+  }
+
+  // Validate required fields
+  if (!startDate || !endDate || !reason) {
+    return errorResponse(res, 400, 'Please provide start date, end date, and reason')
+  }
+
+  // Validate dates
+  const start = new Date(startDate)
+  const end = new Date(endDate)
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  if (start < today) {
+    return errorResponse(res, 400, 'Start date cannot be in the past')
+  }
+
+  if (end < start) {
+    return errorResponse(res, 400, 'End date must be after or equal to start date')
+  }
+
+  // Apply updates
+  leave.startDate = start
+  leave.endDate = end
+  leave.reason = reason
+  if (leaveType) {
+    leave.leaveType = leaveType
+  }
+
+  // Saving will recalculate totalDays via pre-save hook
+  await leave.save()
+
+  await leave.populate('student', 'name email department')
+
+  successResponse(res, 200, 'Leave request updated successfully', { leave })
+})
+
 // @desc    Update leave status (Admin)
 // @route   PUT /api/leave/:id/status
 // @access  Private (Admin)

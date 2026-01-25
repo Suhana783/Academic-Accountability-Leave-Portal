@@ -28,3 +28,8 @@ export const updateLeaveStatus = async (id, payload) => {
 export const deleteLeave = async (id) => {
   await api.delete(`/leave/${id}`)
 }
+
+export const updateLeave = async (id, payload) => {
+  const { data } = await api.put(`/leave/${id}`, payload)
+  return data?.data?.leave
+}

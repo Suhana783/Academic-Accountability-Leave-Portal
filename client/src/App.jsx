@@ -12,6 +12,7 @@ import TakeTestPage from './pages/TakeTestPage'
 import TestResultPage from './pages/TestResultPage'
 import MyResultsPage from './pages/MyResultsPage'
 import LeaveDetailPage from './pages/LeaveDetailPage'
+import EditLeavePage from './pages/EditLeavePage'
 import AdminDashboard from './pages/AdminDashboard'
 import LeaveReviewPage from './pages/LeaveReviewPage'
 import AdminResultsPage from './pages/AdminResultsPage'
@@ -33,9 +34,14 @@ function App() {
               <Route path="/apply-leave" element={<ApplyLeavePage />} />
               <Route path="/my-leaves" element={<MyLeavesPage />} />
               <Route path="/leave/:id" element={<LeaveDetailPage />} />
+              <Route path="/leave/:id/edit" element={<EditLeavePage />} />
+              <Route path="/my-results" element={<MyResultsPage />} />
+            </Route>
+
+            {/* Shared test view/result (students take tests, admins can view) */}
+            <Route element={<ProtectedRoute roles={['student', 'admin']} />}>
               <Route path="/test/:id" element={<TakeTestPage />} />
               <Route path="/test/:id/result" element={<TestResultPage />} />
-              <Route path="/my-results" element={<MyResultsPage />} />
             </Route>
 
             {/* Admin routes */}

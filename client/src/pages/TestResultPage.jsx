@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getTestResult } from '../services/testService'
+import { updateLeaveStatus } from '../services/leaveService'
+import { useAuth } from '../context/AuthContext'
 
 const TestResultPage = () => {
   const { id } = useParams()
+  const { user } = useAuth()
   const [result, setResult] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [approveLoading, setApproveLoading] = useState(false)
+  const [message, setMessage] = useState('')
 
   useEffect(() => {
     const fetchResult = async () => {
@@ -22,6 +27,25 @@ const TestResultPage = () => {
     fetchResult()
   }, [id])
 
+  const handleApprove = async () => {
+    if (!result?.leave?._id) return
+    setError('')
+    setMessage('')
+    setApproveLoading(true)
+    try {
+      const updated = await updateLeaveStatus(result.leave._id, {
+        status: 'approved',
+        adminRemarks: 'Approved by admin override'
+      })
+      setResult((prev) => prev ? { ...prev, leave: { ...prev.leave, status: updated.status } } : prev)
+      setMessage('Leave approved successfully.')
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setApproveLoading(false)
+    }
+  }
+
   if (loading) return <p className="muted">Loading result...</p>
   if (error) return <p className="error">{error}</p>
   if (!result) return <p className="muted">No result found.</p>
@@ -30,6 +54,26 @@ const TestResultPage = () => {
     <div className="card">
       <h2>Test Result</h2>
       <p className="muted">{result.test?.title}</p>
+
+      {message && (
+        <div className="info-box success">{message}</div>
+      )}
+
+      {user?.role === 'admin' && result.leave?.status !== 'approved' && (
+        <div style={{ marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            className="btn"
+            onClick={handleApprove}
+            disabled={approveLoading}
+            style={{ background: '#22c55e', borderColor: '#16a34a' }}
+          >
+            {approveLoading ? 'Approving...' : 'Approve Leave'}
+          </button>
+          <span className="muted" style={{ fontSize: '13px' }}>
+            Override: approve leave even if the test was failed.
+          </span>
+        </div>
+      )}
       
       <div className="grid">
         <div className="tile">

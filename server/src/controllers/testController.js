@@ -98,14 +98,14 @@ export const getTestByLeaveId = asyncHandler(async (req, res) => {
     .populate('createdBy', 'name email')
 
   if (!test) {
-    return errorResponse(res, 404, 'No test found for this leave request')
+    return errorResponse(res, 404, 'No test found for this leave request', null)
   }
 
   // Students can only see tests for their own leave requests
   if (req.user.role === 'student') {
     const leave = await Leave.findById(test.leave._id)
     if (leave.student.toString() !== req.user._id.toString()) {
-      return errorResponse(res, 403, 'Not authorized to access this test')
+      return errorResponse(res, 403, 'Not authorized to access this test', null)
     }
   }
 
@@ -226,13 +226,14 @@ export const getMyTests = asyncHandler(async (req, res) => {
 export const submitTest = asyncHandler(async (req, res) => {
   const testId = req.params.id
   const studentId = req.user._id
-  const { mcqAnswers, codingAnswers, timeTaken } = req.body
+  const { mcqAnswers, codingAnswers, timeTaken, tabSwitchCount } = req.body
 
   // Prepare submission object
   const submission = {
     mcqAnswers: mcqAnswers || [],
     codingAnswers: codingAnswers || [],
-    timeTaken: timeTaken || 0
+    timeTaken: timeTaken || 0,
+    tabSwitchCount: tabSwitchCount || 0
   }
 
   try {
@@ -345,24 +346,37 @@ export const getResultsByStudent = asyncHandler(async (req, res) => {
 export const getMyStatistics = asyncHandler(async (req, res) => {
   const studentId = req.user._id
 
+  // Pull all leaves for the student so we can include tests that are assigned but not yet submitted
+  const leaves = await Leave.find({ student: studentId }).select('_id')
+  const leaveIds = leaves.map((leave) => leave._id)
+
+  // All tests assigned to this student's leaves (even if not submitted)
+  const assignedTests = await Test.find({ leave: { $in: leaveIds } }).select('_id')
+  const assignedCount = assignedTests.length
+
+  // All submitted results for the student
   const results = await TestResult.find({ student: studentId })
 
-  const totalTests = results.length
-  const passedTests = results.filter(r => r.passed).length
-  const failedTests = totalTests - passedTests
-  const averageScore = totalTests > 0
-    ? results.reduce((sum, r) => sum + r.percentage, 0) / totalTests
+  const submittedCount = results.length
+  const passedTests = results.filter((r) => r.passed).length
+  const failedTests = submittedCount - passedTests
+  const averageScore = submittedCount > 0
+    ? results.reduce((sum, r) => sum + r.percentage, 0) / submittedCount
     : 0
 
-  successResponse(res, 200, 'Statistics retrieved successfully', {
-    statistics: {
-      totalTests,
-      passedTests,
-      failedTests,
-      averageScore: Math.round(averageScore * 100) / 100,
-      passRate: totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0
-    }
-  })
+  const statistics = {
+    totalTests: assignedCount,
+    assignedTests: assignedCount,
+    submittedTests: submittedCount,
+    pendingTests: Math.max(assignedCount - submittedCount, 0),
+    passedTests,
+    failedTests,
+    averageScore: Math.round(averageScore * 100) / 100,
+    passRate: submittedCount > 0 ? Math.round((passedTests / submittedCount) * 100) : 0,
+    completionRate: assignedCount > 0 ? Math.round((submittedCount / assignedCount) * 100) : 0
+  }
+
+  successResponse(res, 200, 'Statistics retrieved successfully', { statistics })
 })
 
 // @desc    Delete test result (Admin)

@@ -1,92 +1,168 @@
-import OpenAI from 'openai'
 import Test from '../models/Test.js'
 import Leave from '../models/Leave.js'
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-})
+// Predefined question bank (intermediate level) grouped by subject
+const QUESTION_BANK = {
+  javascript: [
+    {
+      question: 'What is the output of `console.log(typeof NaN)`?',
+      options: ['number', 'NaN', 'undefined', 'object'],
+      correctAnswer: 0
+    },
+    {
+      question: 'Which array method returns a new array with elements that pass a test?',
+      options: ['map', 'filter', 'forEach', 'reduce'],
+      correctAnswer: 1
+    },
+    {
+      question: 'What does `===` check that `==` does not?',
+      options: ['Type only', 'Value only', 'Type and value', 'Reference'],
+      correctAnswer: 2
+    },
+    {
+      question: 'Which statement is true about `let` vs `var`?',
+      options: ['Both are function-scoped', 'Both are block-scoped', '`let` is block-scoped, `var` is function-scoped', '`var` is block-scoped, `let` is function-scoped'],
+      correctAnswer: 2
+    },
+    {
+      question: 'How do you create a shallow copy of an array?',
+      options: ['arr.copy()', '[...arr]', 'arr.clone()', 'arr.copyOf()'],
+      correctAnswer: 1
+    },
+    {
+      question: 'Which object method converts an object to a JSON string?',
+      options: ['JSON.stringify', 'Object.toJSON', 'JSON.parse', 'Object.stringify'],
+      correctAnswer: 0
+    },
+    {
+      question: 'What is a closure?',
+      options: [
+        'A function that returns another function',
+        'A function with access to its lexical scope even when executed outside that scope',
+        'A function that closes variables',
+        'A function without parameters'
+      ],
+      correctAnswer: 1
+    },
+    {
+      question: 'Which of these is NOT a primitive type?',
+      options: ['string', 'boolean', 'object', 'symbol'],
+      correctAnswer: 2
+    }
+  ],
+  'react.js': [
+    {
+      question: 'What hook replaces most class lifecycle methods in function components?',
+      options: ['useState', 'useEffect', 'useMemo', 'useContext'],
+      correctAnswer: 1
+    },
+    {
+      question: 'What is the purpose of keys when rendering lists?',
+      options: ['Improve styling', 'Optimize re-renders and track items', 'Add accessibility', 'Trigger animations'],
+      correctAnswer: 1
+    },
+    {
+      question: 'Which hook shares state across components via context?',
+      options: ['useRef', 'useContext', 'useReducer', 'useCallback'],
+      correctAnswer: 1
+    },
+    {
+      question: 'What does React Strict Mode mainly help with?',
+      options: ['Production optimization', 'Styling consistency', 'Highlighting potential side-effect issues', 'Caching assets'],
+      correctAnswer: 2
+    },
+    {
+      question: 'Which hook is best for complex state transitions?',
+      options: ['useState', 'useReducer', 'useRef', 'useLayoutEffect'],
+      correctAnswer: 1
+    },
+    {
+      question: 'What does `useMemo` return?',
+      options: ['A memoized value', 'A memoized function', 'A memoized component', 'A memoized hook'],
+      correctAnswer: 0
+    },
+    {
+      question: 'What happens when state is updated in React?',
+      options: ['DOM updates immediately', 'Component re-renders and virtual DOM diff runs', 'Nothing until reload', 'Only parent re-renders'],
+      correctAnswer: 1
+    },
+    {
+      question: 'How do you lazily load a component?',
+      options: ['import Component from "./Comp"', 'React.lazy(() => import("./Comp"))', 'useMemo(Component)', 'useEffect(import)'],
+      correctAnswer: 1
+    }
+  ],
+  python: [
+    {
+      question: 'What is the result of `len({1,2,2,3})`?',
+      options: ['4', '3', '2', '0'],
+      correctAnswer: 1
+    },
+    {
+      question: 'Which keyword is used to handle exceptions?',
+      options: ['catch', 'handle', 'except', 'error'],
+      correctAnswer: 2
+    },
+    {
+      question: 'What is a list comprehension?',
+      options: ['A memory view', 'A concise way to create lists from iterables', 'A generator', 'A lambda'],
+      correctAnswer: 1
+    },
+    {
+      question: 'Which built-in is used to iterate with indices?',
+      options: ['items()', 'keys()', 'enumerate()', 'range()'],
+      correctAnswer: 2
+    },
+    {
+      question: 'What does the `*args` syntax allow?',
+      options: ['Keyword arguments', 'Variable positional arguments', 'Static typing', 'Decorators'],
+      correctAnswer: 1
+    },
+    {
+      question: 'What is the output of `"".join(["a","b","c"])`?',
+      options: ['abc', 'a b c', 'a,b,c', 'None'],
+      correctAnswer: 0
+    },
+    {
+      question: 'Which data structure preserves insertion order in Python 3.7+?',
+      options: ['dict', 'set', 'frozenset', 'heapq'],
+      correctAnswer: 0
+    },
+    {
+      question: 'How do you create a virtual environment?',
+      options: ['python -m venv venv', 'pip create venv', 'virtualenv install', 'env make'],
+      correctAnswer: 0
+    }
+  ]
+}
+
+const pickQuestions = (subject, numberOfQuestions) => {
+  const key = subject?.toLowerCase()
+  const pool = QUESTION_BANK[key]
+  if (!pool || pool.length === 0) {
+    throw new Error('No predefined questions available for this subject.')
+  }
+
+  // Shuffle a shallow copy and take the requested amount (with wrap if needed)
+  const shuffled = [...pool].sort(() => Math.random() - 0.5)
+  const result = []
+  for (let i = 0; i < numberOfQuestions; i++) {
+    result.push(shuffled[i % shuffled.length])
+  }
+  return result
+}
 
 class AutomaticTestService {
   /**
-   * Generate questions using OpenAI based on subject and difficulty
+   * Generate questions using predefined banks (intermediate level)
    */
   async generateQuestionsWithAI(subject, difficulty, numberOfQuestions) {
-    try {
-      const prompt = `Generate exactly ${numberOfQuestions} multiple choice questions (MCQs) about ${subject} with ${difficulty} difficulty level.
-
-For each question, provide:
-1. Question text
-2. Exactly 4 options (A, B, C, D)
-3. The correct answer index (0 for A, 1 for B, 2 for C, 3 for D)
-
-Format your response as a JSON array of objects with this exact structure:
-[
-  {
-    "question": "Question text here?",
-    "options": ["Option A", "Option B", "Option C", "Option D"],
-    "correctAnswer": 0
-  }
-]
-
-Make sure questions are clear, educational, and appropriate for ${difficulty} difficulty level.
-Return ONLY the JSON array, no other text.`
-
-      const response = await openai.chat.completions.create({
-        model: 'gpt-3.5-turbo',
-        messages: [
-          {
-            role: 'system',
-            content: 'You are an expert teacher creating educational assessment questions. Always respond with valid JSON only.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.7,
-        max_tokens: 2000
-      })
-
-      const content = response.choices[0].message.content.trim()
-      
-      // Parse the JSON response
-      let questions
-      try {
-        // Try to extract JSON if wrapped in markdown code blocks
-        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/)
-        if (jsonMatch) {
-          questions = JSON.parse(jsonMatch[1])
-        } else {
-          questions = JSON.parse(content)
-        }
-      } catch (parseError) {
-        console.error('Failed to parse AI response:', content)
-        throw new Error('Failed to generate valid questions. Please try again.')
-      }
-
-      // Validate the response
-      if (!Array.isArray(questions) || questions.length !== numberOfQuestions) {
-        throw new Error(`Expected ${numberOfQuestions} questions but got ${questions?.length || 0}`)
-      }
-
-      // Validate each question
-      for (const q of questions) {
-        if (!q.question || !Array.isArray(q.options) || q.options.length !== 4 || typeof q.correctAnswer !== 'number') {
-          throw new Error('Invalid question format received from AI')
-        }
-      }
-
-      return questions
-    } catch (error) {
-      if (error.message.includes('API key')) {
-        throw new Error('OpenAI API key not configured. Please add OPENAI_API_KEY to environment variables.')
-      }
-      throw error
-    }
+    // Difficulty ignored for now; all questions are intermediate
+    return pickQuestions(subject, numberOfQuestions)
   }
 
   /**
-   * Generate test automatically based on criteria using AI
+   * Generate test automatically based on predefined question banks
    */
   async generateTest(criteria) {
     const {
@@ -114,7 +190,7 @@ Return ONLY the JSON array, no other text.`
         throw new Error('Test already exists for this leave request')
       }
 
-      // 3. Generate questions using AI
+      // 3. Generate questions using predefined bank
       const aiQuestions = await this.generateQuestionsWithAI(subject, difficulty, numberOfQuestions)
 
       // 4. Calculate marks per question
@@ -136,12 +212,12 @@ Return ONLY the JSON array, no other text.`
       return {
         leave: leaveId,
         title: title || `${subject} - ${difficulty} Assessment`,
-        description: description || `AI-generated test for ${subject}. Complete all questions to process your leave request.`,
+        description: description || `Predefined test for ${subject}. Complete all questions to process your leave request.`,
         mcqQuestions: mcqQuestions,
         codingQuestions: [],
         totalMarks: totalMarks,
         passMarks: passMarks,
-        duration: duration || 3600,
+        duration: duration || 1800, // default 30 minutes
         isActive: true
       }
     } catch (error) {
@@ -153,29 +229,16 @@ Return ONLY the JSON array, no other text.`
    * Get available subjects (no longer needed but kept for compatibility)
    */
   async getAvailableSubjects() {
-    // Return common subjects since we're using AI now
-    return [
-      'Data Structures',
-      'Java',
-      'Python',
-      'JavaScript',
-      'DBMS',
-      'Operating System',
-      'Computer Networks',
-      'Web Development',
-      'Machine Learning',
-      'Algorithms',
-      'C++',
-      'Software Engineering'
-    ]
+    return Object.keys(QUESTION_BANK).map((key) => key.replace(/\b\w/g, (c) => c.toUpperCase()))
   }
 
   /**
-   * Get question count (always return high number since AI generates on demand)
+   * Get question count from predefined bank
    */
   async getQuestionCount(subject, difficulty) {
-    // AI can generate unlimited questions
-    return 100
+    const key = subject?.toLowerCase()
+    const pool = QUESTION_BANK[key]
+    return pool ? pool.length : 0
   }
 }
 

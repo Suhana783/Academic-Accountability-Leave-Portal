@@ -37,18 +37,22 @@ const TakeTestPage = () => {
       try {
         const data = await getTestById(id)
         
-        // Shuffle MCQ questions to prevent cheating
+        // Add original index to each question before shuffling
         if (data.mcqQuestions && data.mcqQuestions.length > 0) {
+          data.mcqQuestions = data.mcqQuestions.map((q, idx) => ({
+            ...q,
+            originalIndex: idx
+          }))
           data.mcqQuestions = shuffleArray(data.mcqQuestions)
         }
         
         setTest(data)
         setTimeRemaining(data.duration || 3600) // Default 1 hour
         
-        // Initialize answers arrays
+        // Initialize answers arrays with original question index
         setMcqAnswers(
-          (data?.mcqQuestions || []).map((_, idx) => ({
-            questionIndex: idx,
+          (data?.mcqQuestions || []).map((q) => ({
+            questionIndex: q.originalIndex,
             selectedAnswer: null
           }))
         )
@@ -151,10 +155,10 @@ const TakeTestPage = () => {
     }
   }
 
-  const handleMcqChange = (qIndex, value) => {
+  const handleMcqChange = (originalIndex, value) => {
     setMcqAnswers((prev) =>
       prev.map((item) =>
-        item.questionIndex === qIndex ? { ...item, selectedAnswer: Number(value) } : item
+        item.questionIndex === originalIndex ? { ...item, selectedAnswer: Number(value) } : item
       )
     )
   }
@@ -282,8 +286,8 @@ const TakeTestPage = () => {
                         type="radio"
                         name={`mcq-${idx}`}
                         value={optIndex}
-                        checked={mcqAnswers[idx]?.selectedAnswer === optIndex}
-                        onChange={(e) => handleMcqChange(idx, e.target.value)}
+                        checked={mcqAnswers.find(a => a.questionIndex === q.originalIndex)?.selectedAnswer === optIndex}
+                        onChange={(e) => handleMcqChange(q.originalIndex, e.target.value)}
                       />
                       {opt}
                     </label>

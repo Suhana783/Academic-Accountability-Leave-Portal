@@ -30,6 +30,21 @@ export const getTestResult = async (id) => {
   return data?.data?.result
 }
 
+export const reevaluateTest = async (id) => {
+  const { data } = await api.post(`/test/${id}/reevaluate`)
+  return data?.data?.result
+}
+
+export const requestRetest = async (id) => {
+  const { data } = await api.post(`/test/${id}/retest/request`)
+  return data?.data?.leave
+}
+
+export const approveRetest = async (id) => {
+  const { data } = await api.post(`/test/${id}/retest/approve`)
+  return data?.data?.leave
+}
+
 export const getMyResults = async () => {
   const { data } = await api.get('/test/results/my-results')
   return data?.data?.results || []
@@ -55,6 +70,11 @@ export const getResultsByStudent = async (studentId) => {
 
 export const deleteTestResult = async (resultId) => {
   const { data } = await api.delete(`/test/results/${resultId}`)
+  return data
+}
+
+export const deleteTestResultForRetake = async (resultId) => {
+  const { data } = await api.delete(`/test/results/${resultId}/retake`)
   return data
 }
 

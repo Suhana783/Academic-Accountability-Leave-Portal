@@ -11,6 +11,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState('leaves')
+  const [leaveFilter, setLeaveFilter] = useState('all') // 'all', 'pending', 'assigned', 'approved', 'rejected'
 
   useEffect(() => {
     const fetchData = async () => {
@@ -38,6 +39,53 @@ const AdminDashboard = () => {
   const assigned = leaves.filter((l) => l.status === 'test_assigned')
   const approved = leaves.filter((l) => l.status === 'approved')
   const rejected = leaves.filter((l) => l.status === 'rejected')
+
+  // Handle stat card clicks
+  const handleStatClick = (statLabel) => {
+    setActiveTab('leaves')
+    switch(statLabel) {
+      case 'Pending Requests':
+        setLeaveFilter('pending')
+        break
+      case 'Tests Created':
+        setLeaveFilter('assigned')
+        break
+      case 'Approved Leaves':
+        setLeaveFilter('approved')
+        break
+      case 'Rejected Leaves':
+        setLeaveFilter('rejected')
+        break
+      case 'Total Students':
+        setActiveTab('students')
+        setLeaveFilter('all')
+        break
+      case 'Total Admins':
+        setActiveTab('admins')
+        setLeaveFilter('all')
+        break
+      default:
+        setLeaveFilter('all')
+    }
+  }
+
+  // Get filtered leaves based on current filter
+  const getFilteredLeaves = () => {
+    switch(leaveFilter) {
+      case 'pending':
+        return pending
+      case 'assigned':
+        return assigned
+      case 'approved':
+        return approved
+      case 'rejected':
+        return rejected
+      default:
+        return [...pending, ...assigned, ...approved, ...rejected]
+    }
+  }
+
+  const filteredLeaves = getFilteredLeaves()
 
   // Stats configuration
   const stats = [
@@ -83,11 +131,7 @@ const AdminDashboard = () => {
             {stats.map((stat, idx) => (
               <div
                 key={idx}
-                onClick={() => {
-                  if (stat.label === 'Rejected Leaves') {
-                    navigate('/admin/results')
-                  }
-                }}
+                onClick={() => handleStatClick(stat.label)}
                 style={{
                   background: 'white',
                   borderRadius: '16px',
@@ -307,13 +351,107 @@ const AdminDashboard = () => {
             {/* Leave Management Tab */}
             {activeTab === 'leaves' && !loading && (
               <div>
+                {/* Filter buttons */}
+                <div style={{ marginBottom: '24px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => setLeaveFilter('all')}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '20px',
+                      border: leaveFilter === 'all' ? '2px solid #667eea' : '2px solid #e0e0e0',
+                      background: leaveFilter === 'all' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white',
+                      color: leaveFilter === 'all' ? 'white' : '#6c757d',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    📋 All ({pending.length + assigned.length + approved.length + rejected.length})
+                  </button>
+                  <button
+                    onClick={() => setLeaveFilter('pending')}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '20px',
+                      border: leaveFilter === 'pending' ? '2px solid #ff9800' : '2px solid #e0e0e0',
+                      background: leaveFilter === 'pending' ? '#ff9800' : 'white',
+                      color: leaveFilter === 'pending' ? 'white' : '#6c757d',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    ⏳ Pending ({pending.length})
+                  </button>
+                  <button
+                    onClick={() => setLeaveFilter('assigned')}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '20px',
+                      border: leaveFilter === 'assigned' ? '2px solid #0d6efd' : '2px solid #e0e0e0',
+                      background: leaveFilter === 'assigned' ? '#0d6efd' : 'white',
+                      color: leaveFilter === 'assigned' ? 'white' : '#6c757d',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    📝 Tests Created ({assigned.length})
+                  </button>
+                  <button
+                    onClick={() => setLeaveFilter('approved')}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '20px',
+                      border: leaveFilter === 'approved' ? '2px solid #198754' : '2px solid #e0e0e0',
+                      background: leaveFilter === 'approved' ? '#198754' : 'white',
+                      color: leaveFilter === 'approved' ? 'white' : '#6c757d',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    ✅ Approved ({approved.length})
+                  </button>
+                  <button
+                    onClick={() => setLeaveFilter('rejected')}
+                    style={{
+                      padding: '10px 20px',
+                      borderRadius: '20px',
+                      border: leaveFilter === 'rejected' ? '2px solid #dc3545' : '2px solid #e0e0e0',
+                      background: leaveFilter === 'rejected' ? '#dc3545' : 'white',
+                      color: leaveFilter === 'rejected' ? 'white' : '#6c757d',
+                      fontWeight: '600',
+                      cursor: 'pointer',
+                      fontSize: '14px',
+                      transition: 'all 0.3s'
+                    }}
+                  >
+                    ❌ Rejected ({rejected.length})
+                  </button>
+                </div>
+
                 <h4 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', fontWeight: '700', color: '#333' }}>
-                  📥 Pending Leaves ({pending.length})
+                  {leaveFilter === 'all' && `📋 All Active Leaves (${filteredLeaves.length})`}
+                  {leaveFilter === 'pending' && `⏳ Pending Leaves (${pending.length})`}
+                  {leaveFilter === 'assigned' && `📝 Test Assigned (${assigned.length})`}
+                  {leaveFilter === 'approved' && `✅ Approved Leaves (${approved.length})`}
+                  {leaveFilter === 'rejected' && `❌ Rejected Leaves (${rejected.length})`}
                 </h4>
                 <div style={{ marginBottom: '40px' }}>
-                  {pending.map((leave) => (
+                  {filteredLeaves.map((leave) => (
                     <div key={leave._id} style={{
-                      background: 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)',
+                      background: leave.status === 'pending' 
+                        ? 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
+                        : leave.status === 'test_assigned'
+                        ? 'linear-gradient(120deg, #f8fafc 0%, #eef2ff 50%, #fdf2f8 100%)'
+                        : leave.status === 'approved'
+                        ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)'
+                        : 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
                       borderRadius: '12px',
                       padding: '20px',
                       marginBottom: '15px',
@@ -329,54 +467,21 @@ const AdminDashboard = () => {
                           <div style={{ marginTop: '6px', fontSize: '13px', color: '#666' }}>
                             📅 {leave.startDate?.slice(0,10)} → {leave.endDate?.slice(0,10)}
                           </div>
-                        </div>
-                        <Link 
-                          className="btn" 
-                          to={`/admin/leaves/${leave._id}`} 
-                          style={{ 
-                            textDecoration: 'none',
-                            background: 'white',
-                            color: '#667eea',
-                            border: '2px solid #667eea',
-                            fontWeight: '600',
-                            boxShadow: '0 4px 10px rgba(102, 126, 234, 0.2)'
-                          }}
-                        >
-                          👁️ Review
-                        </Link>
-                      </div>
-                    </div>
-                  ))}
-                  {pending.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '15px' }}>📭</div>
-                      <p>No pending leaves at the moment.</p>
-                    </div>
-                  )}
-                </div>
-
-                <h4 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', fontWeight: '700', color: '#333' }}>
-                  ✅ Test Assigned ({assigned.length})
-                </h4>
-                  <div>
-                  {assigned.map((leave) => (
-                    <div key={leave._id} style={{
-                      background: 'linear-gradient(120deg, #f8fafc 0%, #eef2ff 50%, #fdf2f8 100%)',
-                      borderRadius: '14px',
-                      padding: '18px',
-                      marginBottom: '14px',
-                      boxShadow: '0 14px 30px rgba(99, 102, 241, 0.12)',
-                      border: '1px solid rgba(99,102,241,0.12)'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <strong style={{ fontSize: '17px', color: '#333' }}>{leave.student?.name}</strong>
-                          <div style={{ marginTop: '8px', fontSize: '14px', color: '#555' }}>
-                            📝 {leave.reason}
-                          </div>
                           <div style={{ marginTop: '6px', fontSize: '13px' }}>
-                            <span style={{ background: '#ff9800', color: 'white', padding: '4px 10px', borderRadius: '20px', fontWeight: '600' }}>
-                              📝 Test Assigned
+                            <span style={{ 
+                              background: leave.status === 'pending' ? '#ff9800' 
+                                : leave.status === 'test_assigned' ? '#0d6efd' 
+                                : leave.status === 'approved' ? '#198754' 
+                                : '#dc3545',
+                              color: 'white', 
+                              padding: '4px 10px', 
+                              borderRadius: '20px', 
+                              fontWeight: '600' 
+                            }}>
+                              {leave.status === 'pending' && '⏳ Pending'}
+                              {leave.status === 'test_assigned' && '📝 Test Assigned'}
+                              {leave.status === 'approved' && '✅ Approved'}
+                              {leave.status === 'rejected' && '❌ Rejected'}
                             </span>
                           </div>
                         </div>
@@ -386,20 +491,39 @@ const AdminDashboard = () => {
                           style={{ 
                             textDecoration: 'none',
                             background: 'white',
-                            color: '#ff9800',
-                            border: '2px solid #ff9800',
-                            fontWeight: '600'
+                            color: leave.status === 'pending' ? '#ff9800' 
+                              : leave.status === 'test_assigned' ? '#0d6efd'
+                              : leave.status === 'approved' ? '#198754'
+                              : '#dc3545',
+                            border: `2px solid ${leave.status === 'pending' ? '#ff9800' 
+                              : leave.status === 'test_assigned' ? '#0d6efd'
+                              : leave.status === 'approved' ? '#198754'
+                              : '#dc3545'}`,
+                            fontWeight: '600',
+                            boxShadow: '0 4px 10px rgba(102, 126, 234, 0.2)'
                           }}
                         >
-                          👁️ View
+                          {leave.status === 'pending' ? '👁️ Review' : '👁️ View'}
                         </Link>
                       </div>
                     </div>
                   ))}
-                  {assigned.length === 0 && (
+                  {filteredLeaves.length === 0 && (
                     <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '15px' }}>📝</div>
-                      <p>No leaves with tests assigned.</p>
+                      <div style={{ fontSize: '48px', marginBottom: '15px' }}>
+                        {leaveFilter === 'pending' && '📭'}
+                        {leaveFilter === 'assigned' && '📝'}
+                        {leaveFilter === 'approved' && '✅'}
+                        {leaveFilter === 'rejected' && '❌'}
+                        {leaveFilter === 'all' && '📋'}
+                      </div>
+                      <p>
+                        {leaveFilter === 'pending' && 'No pending leaves at the moment.'}
+                        {leaveFilter === 'assigned' && 'No leaves with tests assigned.'}
+                        {leaveFilter === 'approved' && 'No approved leaves yet.'}
+                        {leaveFilter === 'rejected' && 'No rejected leaves yet.'}
+                        {leaveFilter === 'all' && 'No leaves to display.'}
+                      </p>
                     </div>
                   )}
                 </div>

@@ -7,7 +7,10 @@
  * Evaluate a single MCQ answer
  */
 export const evaluateMCQ = (submittedAnswer, correctAnswer, marks) => {
-  const isCorrect = submittedAnswer === correctAnswer
+  // Convert both to numbers for comparison to handle any string/number mismatches
+  const submitted = Number(submittedAnswer)
+  const correct = Number(correctAnswer)
+  const isCorrect = submitted === correct
   const marksAwarded = isCorrect ? marks : 0
 
   return {
@@ -133,6 +136,6 @@ export const generateFeedback = (score, maxScore, passed) => {
   if (passed) {
     return `Congratulations! You scored ${score}/${maxScore}. Your leave has been approved.`
   } else {
-    return `You scored ${score}/${maxScore}. Unfortunately, you did not pass. Your leave has been rejected.`
+    return `You scored ${score}/${maxScore}. Unfortunately, you did not pass the test. Your leave status is currently rejected, but the admin can review and override this decision.`
   }
 }

@@ -269,7 +269,7 @@ export const getTestResult = asyncHandler(async (req, res) => {
     result = await TestResult.findOne({ test: testId }).populate([
       { path: 'test', select: 'title description totalMarks passPercentage' },
       { path: 'student', select: 'name email department' },
-      { path: 'leave', select: 'startDate endDate status reason' }
+      { path: 'leave', select: 'startDate endDate status reason retestRequested retestApproved retestUsed reevaluationUsed' }
     ])
   }
 
@@ -278,6 +278,221 @@ export const getTestResult = asyncHandler(async (req, res) => {
   }
 
   successResponse(res, 200, 'Test result retrieved successfully', { result })
+})
+
+// @desc    Reevaluate test result
+// @route   POST /api/test/:id/reevaluate
+// @access  Private (Student/Admin)
+export const reevaluateTest = asyncHandler(async (req, res) => {
+  const testId = req.params.id
+
+  // Find the test result
+  const testResult = await TestResult.findOne({ test: testId })
+    .populate('student', 'name email')
+    .populate('leave')
+
+  if (!testResult) {
+    return errorResponse(res, 404, 'Test result not found')
+  }
+
+  // Enforce single reevaluation per leave/test
+  const leave = await Leave.findById(testResult.leave._id)
+  if (!leave) {
+    return errorResponse(res, 404, 'Associated leave not found')
+  }
+
+  if (leave.reevaluationUsed) {
+    return errorResponse(res, 400, 'Reevaluation already used for this leave')
+  }
+
+  // If student, verify it's their own result
+  if (req.user.role === 'student' && testResult.student._id.toString() !== req.user._id.toString()) {
+    return errorResponse(res, 403, 'You can only reevaluate your own test')
+  }
+
+  try {
+    // IMPORTANT: Fetch the original test questions from the database to get correct answers
+    const test = await Test.findById(testId)
+    
+    if (!test) {
+      return errorResponse(res, 404, 'Test not found')
+    }
+
+    // Reevaluate MCQ answers using the ORIGINAL test questions as source of truth
+    let mcqScore = 0
+    const reevaluatedMcqAnswers = testResult.mcqAnswers.map(ans => {
+      // Get the original question from the test
+      const originalQuestion = test.mcqQuestions[ans.questionIndex]
+      
+      if (!originalQuestion) {
+        console.error(`Question ${ans.questionIndex} not found in test`)
+        return ans
+      }
+
+      const questionMarks = originalQuestion.marks || 1
+      
+      // Convert both to numbers for safe comparison
+      const submitted = Number(ans.selectedAnswer)
+      const correct = Number(originalQuestion.correctAnswer)
+      const isCorrect = submitted === correct
+      const marksAwarded = isCorrect ? questionMarks : 0
+      
+      console.log(`📝 MCQ Q${ans.questionIndex + 1}: Submitted=${submitted}, Correct=${correct}, Match=${isCorrect}, Marks=${marksAwarded}`)
+      console.log(`   Question: "${originalQuestion.question.substring(0, 50)}..."`)
+      
+      mcqScore += marksAwarded
+      
+      return {
+        questionIndex: ans.questionIndex,
+        selectedAnswer: ans.selectedAnswer,
+        correctAnswer: correct,
+        isCorrect,
+        marksAwarded
+      }
+    })
+
+    // Reevaluate coding answers using original test questions
+    let codingScore = 0
+    const reevaluatedCodingAnswers = testResult.codingAnswers.map(ans => {
+      const originalQuestion = test.codingQuestions[ans.questionIndex]
+      
+      if (!originalQuestion) {
+        console.error(`Coding question ${ans.questionIndex} not found in test`)
+        return ans
+      }
+
+      const questionMarks = originalQuestion.marks || 1
+      
+      const submitted = (ans.submittedOutput || '').trim()
+      const expected = (originalQuestion.expectedOutput || '').trim()
+      const isCorrect = submitted === expected
+      const marksAwarded = isCorrect ? questionMarks : 0
+      
+      console.log(`💻 Coding Q${ans.questionIndex + 1}: Match=${isCorrect}, Marks=${marksAwarded}`)
+      
+      codingScore += marksAwarded
+      
+      return {
+        questionIndex: ans.questionIndex,
+        submittedOutput: ans.submittedOutput,
+        expectedOutput: expected,
+        isCorrect,
+        marksAwarded
+      }
+    })
+
+    // Calculate new scores
+    const totalScore = mcqScore + codingScore
+    const maxScore = testResult.maxScore
+    const passed = totalScore >= testResult.passMarks
+    const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0
+
+    console.log(`✅ Reevaluation: ${totalScore}/${maxScore} (${percentage}%) - ${passed ? 'PASSED' : 'FAILED'}`)
+
+    // Generate feedback
+    const { generateFeedback } = await import('../utils/evaluationHelper.js')
+    const feedback = generateFeedback(totalScore, maxScore, passed)
+
+    // Update the result
+    testResult.mcqAnswers = reevaluatedMcqAnswers
+    testResult.codingAnswers = reevaluatedCodingAnswers
+    testResult.mcqScore = mcqScore
+    testResult.codingScore = codingScore
+    testResult.totalScore = totalScore
+    testResult.passed = passed
+    testResult.percentage = percentage
+    testResult.feedback = feedback
+
+    await testResult.save()
+
+    // Mark reevaluation consumed
+    leave.reevaluationUsed = true
+    await leave.save()
+
+    // Update leave status based on new result
+    await evaluationService.updateLeaveStatus(testResult.leave._id, passed)
+
+    // Populate and return updated result
+    await testResult.populate([
+      { path: 'test', select: 'title description totalMarks passMarks' },
+      { path: 'student', select: 'name email department' },
+      { path: 'leave', select: 'startDate endDate status reason retestRequested retestApproved retestUsed reevaluationUsed' }
+    ])
+
+    successResponse(res, 200, 'Test reevaluated successfully', { result: testResult })
+  } catch (error) {
+    console.error('Reevaluation error:', error)
+    return errorResponse(res, 400, error.message)
+  }
+})
+
+// @desc    Request a retest (Student) - only once
+// @route   POST /api/test/:id/retest/request
+// @access  Private (Student)
+export const requestRetest = asyncHandler(async (req, res) => {
+  const testId = req.params.id
+
+  const testResult = await TestResult.findOne({ test: testId, student: req.user._id })
+  if (!testResult) {
+    return errorResponse(res, 404, 'Test result not found for this student')
+  }
+
+  const leave = await Leave.findById(testResult.leave)
+  if (!leave) {
+    return errorResponse(res, 404, 'Associated leave not found')
+  }
+
+  if (leave.retestUsed) {
+    return errorResponse(res, 400, 'Retest already used for this leave')
+  }
+
+  if (leave.retestApproved) {
+    return errorResponse(res, 400, 'Retest already approved')
+  }
+
+  if (leave.retestRequested) {
+    return errorResponse(res, 400, 'Retest request is already pending admin approval')
+  }
+
+  leave.retestRequested = true
+  leave.retestApproved = false
+  await leave.save()
+
+  successResponse(res, 200, 'Retest requested. Await admin approval.', { leave })
+})
+
+// @desc    Approve a retest (Admin)
+// @route   POST /api/test/:id/retest/approve
+// @access  Private (Admin)
+export const approveRetest = asyncHandler(async (req, res) => {
+  const testId = req.params.id
+
+  const testResult = await TestResult.findOne({ test: testId })
+  if (!testResult) {
+    return errorResponse(res, 404, 'Test result not found')
+  }
+
+  const leave = await Leave.findById(testResult.leave)
+  if (!leave) {
+    return errorResponse(res, 404, 'Associated leave not found')
+  }
+
+  if (leave.retestUsed) {
+    return errorResponse(res, 400, 'Retest already used for this leave')
+  }
+
+  if (leave.retestApproved) {
+    return errorResponse(res, 400, 'Retest already approved')
+  }
+
+  leave.retestApproved = true
+  leave.retestRequested = false
+  leave.status = 'test_assigned'
+  leave.reviewedBy = req.user._id
+  leave.reviewedAt = new Date()
+  await leave.save()
+
+  successResponse(res, 200, 'Retest approved. Student can retake once.', { leave })
 })
 
 // @desc    Get all test results for current student
@@ -380,8 +595,9 @@ export const getMyStatistics = asyncHandler(async (req, res) => {
 })
 
 // @desc    Delete test result (Admin)
+// @desc    Delete test result
 // @route   DELETE /api/test/results/:resultId
-// @access  Private (Admin)
+// @access  Private (Admin or Student for own result retake)
 export const deleteTestResult = asyncHandler(async (req, res) => {
   const { resultId } = req.params
 
@@ -391,7 +607,36 @@ export const deleteTestResult = asyncHandler(async (req, res) => {
     return errorResponse(res, 404, 'Test result not found')
   }
 
+  const leave = await Leave.findById(result.leave)
+  if (!leave) {
+    return errorResponse(res, 404, 'Associated leave not found')
+  }
+
+  // Check if student is trying to delete their own result (for retake)
+  if (req.user.role === 'student' && result.student.toString() !== req.user._id.toString()) {
+    return errorResponse(res, 403, 'You can only delete your own test result')
+  }
+
+  // Students can only delete if retest is approved and not already used
+  if (req.user.role === 'student') {
+    if (!leave.retestApproved) {
+      return errorResponse(res, 400, 'Retest must be approved by admin before deleting result')
+    }
+    if (leave.retestUsed) {
+      return errorResponse(res, 400, 'Retest already used for this leave')
+    }
+  }
+
   await TestResult.findByIdAndDelete(resultId)
+
+  // Mark retest consumption when applicable
+  if (req.user.role === 'student' && leave.retestApproved) {
+    leave.retestUsed = true
+    leave.retestApproved = false
+    leave.retestRequested = false
+    leave.status = 'test_assigned'
+    await leave.save()
+  }
 
   successResponse(res, 200, 'Test result deleted successfully', null)
 })

@@ -61,10 +61,7 @@ const StudentDashboard = () => {
   return (
     <div style={{ 
       background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 35%, #d6dcff 100%)', 
-      padding: '36px 20px 60px',
-      minHeight: '100vh',
-      maxHeight: '100vh',
-      overflow: 'hidden'
+      padding: '36px 20px 32px'
     }}>
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         

@@ -34,6 +34,23 @@ const leaveSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    // Retest / reevaluation controls
+    retestRequested: {
+      type: Boolean,
+      default: false
+    },
+    retestApproved: {
+      type: Boolean,
+      default: false
+    },
+    retestUsed: {
+      type: Boolean,
+      default: false
+    },
+    reevaluationUsed: {
+      type: Boolean,
+      default: false
+    },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'

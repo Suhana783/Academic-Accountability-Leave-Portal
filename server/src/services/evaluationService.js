@@ -33,16 +33,6 @@ class EvaluationService {
         throw new Error('This test is not assigned to you')
       }
 
-      // Check if already submitted
-      const existingResult = await TestResult.findOne({
-        test: testId,
-        student: studentId
-      })
-
-      if (existingResult) {
-        throw new Error('Test already submitted')
-      }
-
       // Evaluate MCQs
       const mcqEvaluation = evaluateAllMCQs(
         test.mcqQuestions,
@@ -122,6 +112,16 @@ class EvaluationService {
    */
   async completeSubmission(testId, studentId, submission) {
     try {
+      // Check if already submitted
+      const existingResult = await TestResult.findOne({
+        test: testId,
+        student: studentId
+      })
+
+      if (existingResult) {
+        throw new Error('Test already submitted')
+      }
+
       // Process and evaluate
       const resultData = await this.processTestSubmission(
         testId,
@@ -142,7 +142,7 @@ class EvaluationService {
       await testResult.populate([
         { path: 'test', select: 'title description totalMarks passMarks' },
         { path: 'student', select: 'name email' },
-        { path: 'leave', select: 'startDate endDate status reason' }
+        { path: 'leave', select: 'startDate endDate status reason retestRequested retestApproved retestUsed reevaluationUsed' }
       ])
 
       return {
@@ -168,7 +168,7 @@ class EvaluationService {
       }).populate([
         { path: 'test', select: 'title description totalMarks passMarks' },
         { path: 'student', select: 'name email' },
-        { path: 'leave', select: 'startDate endDate status reason' }
+        { path: 'leave', select: 'startDate endDate status reason retestRequested retestApproved retestUsed reevaluationUsed' }
       ])
 
       return result
@@ -185,7 +185,7 @@ class EvaluationService {
       const results = await TestResult.find({ student: studentId })
         .populate([
           { path: 'test', select: 'title description totalMarks passMarks' },
-          { path: 'leave', select: 'startDate endDate status reason' }
+          { path: 'leave', select: 'startDate endDate status reason retestRequested retestApproved retestUsed reevaluationUsed' }
         ])
         .sort({ submittedAt: -1 })
 

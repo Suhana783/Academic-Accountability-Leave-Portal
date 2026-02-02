@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { removeUser } from '../services/authService'
+import { removeUser, removeUserByEmail } from '../services/authService'
 
 const RemoveUserPage = () => {
   const [form, setForm] = useState({ email: '', password: '' })
@@ -8,21 +8,27 @@ const RemoveUserPage = () => {
   const [loading, setLoading] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [deletedUser, setDeletedUser] = useState(null)
+  const [removeMode, setRemoveMode] = useState('password')
 
   const onChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }))
   }
 
-  const onSubmit = async (e) => {
-    e.preventDefault()
+  const requestRemove = (mode) => {
     setError('')
     setSuccess('')
 
-    if (!form.email || !form.password) {
+    if (!form.email) {
+      setError('Please provide email')
+      return
+    }
+
+    if (mode === 'password' && !form.password) {
       setError('Please provide email and password')
       return
     }
 
+    setRemoveMode(mode)
     setShowConfirm(true)
   }
 
@@ -31,7 +37,9 @@ const RemoveUserPage = () => {
     setLoading(true)
 
     try {
-      const result = await removeUser(form.email, form.password)
+      const result = removeMode === 'email'
+        ? await removeUserByEmail(form.email)
+        : await removeUser(form.email, form.password)
       setDeletedUser(result.user)
       setSuccess(`User "${result.user.name}" (${result.user.email}) has been successfully removed!`)
       setForm({ email: '', password: '' })
@@ -48,16 +56,17 @@ const RemoveUserPage = () => {
     setError('')
     setSuccess('')
     setDeletedUser(null)
+    setRemoveMode('password')
   }
 
   return (
     <div className="card">
       <h2>Remove User</h2>
       <p className="muted">
-        Delete a student or admin account by providing their email and password.
+        Delete a student or admin account by providing their email and password, or use email-only removal.
       </p>
 
-      <form className="form" onSubmit={onSubmit} style={{ marginTop: '24px' }}>
+      <form className="form" onSubmit={(e) => e.preventDefault()} style={{ marginTop: '24px' }}>
         <div>
           <label>Email Address</label>
           <input
@@ -75,15 +84,14 @@ const RemoveUserPage = () => {
           <input
             name="password"
             type="password"
-            placeholder="Enter user password to confirm"
+            placeholder="Enter user password to confirm (optional for email-only)"
             value={form.password}
             onChange={onChange}
-            required
           />
         </div>
 
         <p className="muted" style={{ fontSize: '12px', marginTop: '4px' }}>
-          ⚠️ Password verification is required for security. This action cannot be undone.
+          ⚠️ This action cannot be undone. Email-only removal is an admin override.
         </p>
 
         {error && <div className="error">{error}</div>}
@@ -101,8 +109,21 @@ const RemoveUserPage = () => {
         )}
 
         <div className="actions-row">
-          <button className="btn" type="submit" disabled={loading}>
-            {loading ? 'Processing...' : 'Remove User'}
+          <button
+            className="btn"
+            type="button"
+            onClick={() => requestRemove('password')}
+            disabled={loading}
+          >
+            {loading ? 'Processing...' : 'Remove User (Password)'}
+          </button>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => requestRemove('email')}
+            disabled={loading}
+          >
+            Remove by Email
           </button>
           <button
             className="btn ghost"
@@ -141,7 +162,9 @@ const RemoveUserPage = () => {
               Are you sure you want to permanently remove the user with email <strong>{form.email}</strong>?
             </p>
             <p className="muted" style={{ fontSize: '12px', marginBottom: '20px' }}>
-              This action is irreversible. All associated data will be deleted.
+              {removeMode === 'email'
+                ? 'Admin override will delete the user without password verification.'
+                : 'This action is irreversible. All associated data will be deleted.'}
             </p>
             <div style={{ display: 'flex', gap: '12px' }}>
               <button

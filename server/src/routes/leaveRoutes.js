@@ -6,7 +6,8 @@ import {
   getAllLeaves,
   updateLeaveStatus,
   deleteLeave,
-  updateMyLeave
+  updateMyLeave,
+  deleteLeaveByAdmin
 } from '../controllers/leaveController.js'
 import { protect, adminOnly, studentOnly } from '../middleware/authMiddleware.js'
 
@@ -21,6 +22,7 @@ router.put('/:id', protect, studentOnly, updateMyLeave)
 // Admin routes
 router.get('/', protect, adminOnly, getAllLeaves)
 router.put('/:id/status', protect, adminOnly, updateLeaveStatus)
+router.delete('/:id/admin', protect, adminOnly, deleteLeaveByAdmin)
 
 // Both student and admin can access
 router.get('/:id', protect, getLeaveById)

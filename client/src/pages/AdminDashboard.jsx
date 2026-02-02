@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { getAllLeaves } from '../services/leaveService'
+import { getAllLeaves, deleteLeaveAdmin } from '../services/leaveService'
 import { getAllStudents, getAllAdmins } from '../services/authService'
 
 const AdminDashboard = () => {
@@ -86,6 +86,19 @@ const AdminDashboard = () => {
   }
 
   const filteredLeaves = getFilteredLeaves()
+
+  const handleClearLeave = async (leaveId) => {
+    const confirmed = window.confirm('Clear this leave record? This cannot be undone.')
+    if (!confirmed) return
+
+    try {
+      await deleteLeaveAdmin(leaveId)
+      setLeaves((prev) => prev.filter((leave) => leave._id !== leaveId))
+    } catch (err) {
+      console.error('Error clearing leave:', err)
+      setError(err.message || 'Failed to clear leave')
+    }
+  }
 
   // Stats configuration
   const stats = [
@@ -485,26 +498,45 @@ const AdminDashboard = () => {
                             </span>
                           </div>
                         </div>
-                        <Link 
-                          className="btn" 
-                          to={`/admin/leaves/${leave._id}`} 
-                          style={{ 
-                            textDecoration: 'none',
-                            background: 'white',
-                            color: leave.status === 'pending' ? '#ff9800' 
-                              : leave.status === 'test_assigned' ? '#0d6efd'
-                              : leave.status === 'approved' ? '#198754'
-                              : '#dc3545',
-                            border: `2px solid ${leave.status === 'pending' ? '#ff9800' 
-                              : leave.status === 'test_assigned' ? '#0d6efd'
-                              : leave.status === 'approved' ? '#198754'
-                              : '#dc3545'}`,
-                            fontWeight: '600',
-                            boxShadow: '0 4px 10px rgba(102, 126, 234, 0.2)'
-                          }}
-                        >
-                          {leave.status === 'pending' ? '👁️ Review' : '👁️ View'}
-                        </Link>
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <Link 
+                            className="btn" 
+                            to={`/admin/leaves/${leave._id}`} 
+                            style={{ 
+                              textDecoration: 'none',
+                              background: 'white',
+                              color: leave.status === 'pending' ? '#ff9800' 
+                                : leave.status === 'test_assigned' ? '#0d6efd'
+                                : leave.status === 'approved' ? '#198754'
+                                : '#dc3545',
+                              border: `2px solid ${leave.status === 'pending' ? '#ff9800' 
+                                : leave.status === 'test_assigned' ? '#0d6efd'
+                                : leave.status === 'approved' ? '#198754'
+                                : '#dc3545'}`,
+                              fontWeight: '600',
+                              boxShadow: '0 4px 10px rgba(102, 126, 234, 0.2)'
+                            }}
+                          >
+                            {leave.status === 'pending' ? '👁️ Review' : '👁️ View'}
+                          </Link>
+                          {(leave.status === 'approved' || leave.status === 'rejected') && (
+                            <button
+                              type="button"
+                              onClick={() => handleClearLeave(leave._id)}
+                              style={{
+                                padding: '8px 14px',
+                                borderRadius: '10px',
+                                border: '2px solid #6b7280',
+                                background: 'white',
+                                color: '#374151',
+                                fontWeight: '700',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              🧹 Clear
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   ))}

@@ -1,5 +1,7 @@
 import Leave from '../models/Leave.js'
 import User from '../models/User.js'
+import Test from '../models/Test.js'
+import TestResult from '../models/TestResult.js'
 import { successResponse, errorResponse } from '../utils/responseHelper.js'
 import { asyncHandler } from '../middleware/errorHandler.js'
 
@@ -246,4 +248,36 @@ export const deleteLeave = asyncHandler(async (req, res) => {
   await leave.deleteOne()
 
   successResponse(res, 200, 'Leave request deleted successfully', null)
+})
+
+// @desc    Delete leave request (Admin - approved/rejected only)
+// @route   DELETE /api/leave/:id/admin
+// @access  Private (Admin)
+export const deleteLeaveByAdmin = asyncHandler(async (req, res) => {
+  const leave = await Leave.findById(req.params.id)
+
+  if (!leave) {
+    return errorResponse(res, 404, 'Leave request not found')
+  }
+
+  if (!['approved', 'rejected'].includes(leave.status)) {
+    return errorResponse(res, 400, 'Only approved or rejected leaves can be cleared')
+  }
+
+  // Restore leave balance if approved and student still exists
+  if (leave.status === 'approved') {
+    const user = await User.findById(leave.student)
+    if (user) {
+      user.leaveBalance += leave.totalDays || 0
+      await user.save()
+    }
+  }
+
+  // Remove linked test results and tests
+  await TestResult.deleteMany({ leave: leave._id })
+  await Test.deleteMany({ leave: leave._id })
+
+  await leave.deleteOne()
+
+  successResponse(res, 200, 'Leave cleared successfully', null)
 })

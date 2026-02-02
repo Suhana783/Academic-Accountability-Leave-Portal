@@ -27,6 +27,13 @@ export const removeUser = async (email, password) => {
   return data?.data
 }
 
+export const removeUserByEmail = async (email) => {
+  const { data } = await api.delete('/auth/remove-user-by-email', {
+    data: { email }
+  })
+  return data?.data
+}
+
 export const getAllStudents = async () => {
   const { data } = await api.get('/auth/students')
   return data?.data?.students || []

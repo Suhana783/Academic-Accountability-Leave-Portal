@@ -1,7 +1,57 @@
 import User from '../models/User.js'
+import Leave from '../models/Leave.js'
+import Test from '../models/Test.js'
+import TestResult from '../models/TestResult.js'
 import { generateToken } from '../services/authService.js'
 import { successResponse, errorResponse } from '../utils/responseHelper.js'
 import { asyncHandler } from '../middleware/errorHandler.js'
+
+const deleteUserWithData = async (user) => {
+  const deletedUserInfo = {
+    id: user._id,
+    name: user.name,
+    email: user.email,
+    role: user.role
+  }
+
+  const leaveDocs = await Leave.find({ student: user._id }).select('_id').lean()
+  const leaveIds = leaveDocs.map(leave => leave._id)
+
+  const testsFromLeaves = leaveIds.length
+    ? await Test.find({ leave: { $in: leaveIds } }).select('_id').lean()
+    : []
+  const testsByAdmin = await Test.find({ createdBy: user._id }).select('_id').lean()
+
+  const testIds = Array.from(
+    new Set([...testsFromLeaves, ...testsByAdmin].map(test => test._id.toString()))
+  )
+
+  const testResultOr = [{ student: user._id }]
+  if (leaveIds.length) {
+    testResultOr.push({ leave: { $in: leaveIds } })
+  }
+  if (testIds.length) {
+    testResultOr.push({ test: { $in: testIds } })
+  }
+  await TestResult.deleteMany({ $or: testResultOr })
+
+  if (testIds.length) {
+    await Test.deleteMany({ _id: { $in: testIds } })
+  }
+
+  if (leaveIds.length) {
+    await Leave.deleteMany({ _id: { $in: leaveIds } })
+  }
+
+  await Leave.updateMany(
+    { reviewedBy: user._id },
+    { $unset: { reviewedBy: '', reviewedAt: '' } }
+  )
+
+  await User.deleteOne({ _id: user._id })
+
+  return deletedUserInfo
+}
 
 // @desc    Login user
 // @route   POST /api/auth/login
@@ -176,8 +226,70 @@ export const removeUser = asyncHandler(async (req, res) => {
     role: user.role
   }
 
+  // Gather user-related records
+  const leaveDocs = await Leave.find({ student: user._id }).select('_id').lean()
+  const leaveIds = leaveDocs.map(leave => leave._id)
+
+  const testsFromLeaves = leaveIds.length
+    ? await Test.find({ leave: { $in: leaveIds } }).select('_id').lean()
+    : []
+  const testsByAdmin = await Test.find({ createdBy: user._id }).select('_id').lean()
+
+  const testIds = Array.from(
+    new Set([...testsFromLeaves, ...testsByAdmin].map(test => test._id.toString()))
+  )
+
+  // Remove test results linked to the user, their leaves, or their tests
+  const testResultOr = [{ student: user._id }]
+  if (leaveIds.length) {
+    testResultOr.push({ leave: { $in: leaveIds } })
+  }
+  if (testIds.length) {
+    testResultOr.push({ test: { $in: testIds } })
+  }
+  await TestResult.deleteMany({ $or: testResultOr })
+
+  // Remove tests created by the user or tied to their leaves
+  if (testIds.length) {
+    await Test.deleteMany({ _id: { $in: testIds } })
+  }
+
+  // Remove leaves created by the user
+  if (leaveIds.length) {
+    await Leave.deleteMany({ _id: { $in: leaveIds } })
+  }
+
+  // Clear admin review references if admin is removed
+  await Leave.updateMany(
+    { reviewedBy: user._id },
+    { $unset: { reviewedBy: '', reviewedAt: '' } }
+  )
+
   // Delete the user
   await User.deleteOne({ _id: user._id })
+
+  successResponse(res, 200, 'User removed successfully', {
+    user: deletedUserInfo
+  })
+})
+
+// @desc    Delete a user by email (Admin only, no password)
+// @route   DELETE /api/auth/remove-user-by-email
+// @access  Private/Admin
+export const removeUserByEmail = asyncHandler(async (req, res) => {
+  const { email } = req.body
+
+  if (!email) {
+    return errorResponse(res, 400, 'Please provide email')
+  }
+
+  const user = await User.findOne({ email })
+
+  if (!user) {
+    return errorResponse(res, 404, 'User not found')
+  }
+
+  const deletedUserInfo = await deleteUserWithData(user)
 
   successResponse(res, 200, 'User removed successfully', {
     user: deletedUserInfo

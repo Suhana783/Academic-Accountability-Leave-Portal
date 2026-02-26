@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { getTestResult, reevaluateTest, deleteTestResultForRetake, requestRetest, approveRetest } from '../services/testService'
 import { updateLeaveStatus } from '../services/leaveService'
 import { useAuth } from '../context/AuthContext'
+import { colors, spacing, borderRadius, typography, transitions } from '../utils/designSystem'
 
 const TestResultPage = () => {
   const { id } = useParams()
@@ -139,9 +140,30 @@ const TestResultPage = () => {
     }
   }
 
-  if (loading) return <p className="muted">Loading result...</p>
-  if (error) return <p className="error">{error}</p>
-  if (!result) return <p className="muted">No result found.</p>
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: spacing.xxxl }}>
+        <div style={{ fontSize: '48px', marginBottom: spacing.lg }}>⏳</div>
+        <p style={{ ...typography.body_lg, color: colors.gray_600 }}>Loading result...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: spacing.xl, background: colors.danger_light, borderRadius: borderRadius.lg, color: colors.danger_dark }}>
+        {error}
+      </div>
+    )
+  }
+
+  if (!result) {
+    return (
+      <div style={{ padding: spacing.xl, background: colors.gray_100, borderRadius: borderRadius.lg, color: colors.gray_600 }}>
+        No result found.
+      </div>
+    )
+  }
 
   const leaveFlags = result.leave || {}
   const retestRequested = !!leaveFlags.retestRequested
@@ -152,12 +174,35 @@ const TestResultPage = () => {
   const canRetake = retestApproved && !retestUsed
 
   return (
-    <div className="card">
-      <h2>Test Result</h2>
-      <p className="muted">{result.test?.title}</p>
+    <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%', padding: `0 ${spacing.lg}` }}>
+      {/* Header */}
+      <div style={{
+        background: colors.white,
+        padding: spacing.xl,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.lg,
+        border: `1px solid ${colors.gray_200}`,
+        boxShadow: colors.shadow_sm
+      }}>
+        <h2 style={{ ...typography.h2, margin: 0, marginBottom: spacing.sm, color: colors.gray_900 }}>
+          Test Result
+        </h2>
+        <p style={{ ...typography.body, color: colors.gray_600, margin: 0 }}>
+          {result.test?.title}
+        </p>
+      </div>
 
       {message && (
-        <div className="info-box success">{message}</div>
+        <div style={{
+          padding: spacing.md,
+          background: colors.success_light,
+          color: colors.success_dark,
+          borderRadius: borderRadius.md,
+          marginBottom: spacing.lg,
+          border: `1px solid ${colors.success}`
+        }}>
+          {message}
+        </div>
       )}
 
       {/* Reevaluation / Retest for Students */}
@@ -259,36 +304,106 @@ const TestResultPage = () => {
         </div>
       )}
       
-      <div className="grid">
-        <div className="tile">
-          <strong>Total Score</strong>
-          <div>{result.totalScore} / {result.maxScore}</div>
-        </div>
-        <div className="tile">
-          <strong>Percentage</strong>
-          <div>{result.percentage || 0}%</div>
-        </div>
-        <div className="tile">
-          <strong>Status</strong>
-          <div className={result.passed ? 'badge success' : 'badge danger'}>
-            {result.passed ? 'PASSED' : 'FAILED'}
+      {/* Statistics Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: spacing.lg,
+        marginBottom: spacing.lg
+      }}>
+        <div style={{
+          background: colors.white,
+          padding: spacing.lg,
+          borderRadius: borderRadius.lg,
+          border: `1px solid ${colors.gray_200}`,
+          boxShadow: colors.shadow_sm,
+          textAlign: 'center'
+        }}>
+          <div style={{ ...typography.body_sm, color: colors.gray_600, marginBottom: spacing.xs }}>Total Score</div>
+          <div style={{ ...typography.h2, color: colors.gray_900, margin: 0 }}>
+            {result.totalScore} / {result.maxScore}
           </div>
         </div>
-        <div className="tile">
-          <strong>Leave Status</strong>
-          <div>{result.leave?.status}</div>
+
+        <div style={{
+          background: colors.white,
+          padding: spacing.lg,
+          borderRadius: borderRadius.lg,
+          border: `1px solid ${colors.gray_200}`,
+          boxShadow: colors.shadow_sm,
+          textAlign: 'center'
+        }}>
+          <div style={{ ...typography.body_sm, color: colors.gray_600, marginBottom: spacing.xs }}>Percentage</div>
+          <div style={{ ...typography.h2, color: colors.primary, margin: 0 }}>
+            {result.percentage || 0}%
+          </div>
+        </div>
+
+        <div style={{
+          background: colors.white,
+          padding: spacing.lg,
+          borderRadius: borderRadius.lg,
+          border: `1px solid ${colors.gray_200}`,
+          boxShadow: colors.shadow_sm,
+          textAlign: 'center'
+        }}>
+          <div style={{ ...typography.body_sm, color: colors.gray_600, marginBottom: spacing.xs }}>Status</div>
+          <div style={{
+            display: 'inline-block',
+            padding: `${spacing.xs} ${spacing.lg}`,
+            background: result.passed ? colors.success_light : colors.danger_light,
+            color: result.passed ? colors.success_dark : colors.danger_dark,
+            borderRadius: borderRadius.full,
+            fontWeight: '600',
+            fontSize: '14px',
+            border: `1px solid ${result.passed ? colors.success : colors.danger}`
+          }}>
+            {result.passed ? '✓ PASSED' : '✗ FAILED'}
+          </div>
+        </div>
+
+        <div style={{
+          background: colors.white,
+          padding: spacing.lg,
+          borderRadius: borderRadius.lg,
+          border: `1px solid ${colors.gray_200}`,
+          boxShadow: colors.shadow_sm,
+          textAlign: 'center'
+        }}>
+          <div style={{ ...typography.body_sm, color: colors.gray_600, marginBottom: spacing.xs }}>Leave Status</div>
+          <div style={{ ...typography.h4, color: colors.gray_900, margin: 0, textTransform: 'capitalize' }}>
+            {result.leave?.status || 'N/A'}
+          </div>
         </div>
       </div>
 
-      <div className="grid" style={{ marginTop: '10px' }}>
-        <div className="tile">
-          <strong>Time Taken</strong>
-          <div>{Math.floor((result.timeTaken || 0) / 60)} min {(result.timeTaken || 0) % 60} sec</div>
+      {/* Additional Info */}
+      <div style={{
+        background: colors.white,
+        padding: spacing.lg,
+        borderRadius: borderRadius.lg,
+        marginBottom: spacing.lg,
+        border: `1px solid ${colors.gray_200}`,
+        boxShadow: colors.shadow_sm,
+        display: 'flex',
+        gap: spacing.xl,
+        flexWrap: 'wrap',
+        justifyContent: 'space-around'
+      }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ ...typography.body_sm, color: colors.gray_600, marginBottom: spacing.xs }}>Time Taken</div>
+          <div style={{ ...typography.body, fontWeight: '600', color: colors.gray_900 }}>
+            {Math.floor((result.timeTaken || 0) / 60)} min {(result.timeTaken || 0) % 60} sec
+          </div>
         </div>
         {result.tabSwitchCount !== undefined && (
-          <div className="tile">
-            <strong>Tab Switches</strong>
-            <div style={{ color: result.tabSwitchCount > 5 ? '#e67700' : 'inherit' }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ ...typography.body_sm, color: colors.gray_600, marginBottom: spacing.xs }}>Tab Switches</div>
+            <div style={{
+              ...typography.body,
+              fontWeight: '600',
+              color: result.tabSwitchCount > 5 ? colors.danger : colors.gray_900
+            }}>
               {result.tabSwitchCount} {result.tabSwitchCount > 5 && '⚠️'}
             </div>
           </div>
@@ -296,56 +411,146 @@ const TestResultPage = () => {
       </div>
 
       {result.feedback && (
-        <div className={result.passed ? 'info-box success' : 'info-box'}>
-          <p>{result.feedback}</p>
+        <div style={{
+          padding: spacing.lg,
+          background: result.passed ? colors.success_light : colors.warning_light,
+          color: result.passed ? colors.success_dark : colors.warning_dark,
+          borderRadius: borderRadius.lg,
+          marginBottom: spacing.lg,
+          border: `1px solid ${result.passed ? colors.success : colors.warning}`
+        }}>
+          <p style={{ margin: 0 }}>{result.feedback}</p>
         </div>
       )}
 
+      {/* MCQ Results */}
       {result.mcqAnswers && result.mcqAnswers.length > 0 && (
-        <div className="section">
-          <h3>MCQ Results (Score: {result.mcqScore})</h3>
-          {result.mcqAnswers.map((ans, idx) => (
-            <div key={idx} className="list-item">
-              <div>
-                <strong>Question {ans.questionIndex + 1}</strong>
-                <div className="muted">
-                  Your Answer: {ans.selectedAnswer !== null ? `Option ${ans.selectedAnswer}` : 'Not answered'} | 
-                  Correct Answer: Option {ans.correctAnswer}
+        <div style={{
+          background: colors.white,
+          padding: spacing.xl,
+          borderRadius: borderRadius.lg,
+          marginBottom: spacing.lg,
+          border: `1px solid ${colors.gray_200}`,
+          boxShadow: colors.shadow_sm
+        }}>
+          <h3 style={{ ...typography.h3, margin: 0, marginBottom: spacing.lg, color: colors.gray_900 }}>
+            MCQ Results <span style={{ color: colors.gray_600, fontSize: '16px' }}>(Score: {result.mcqScore})</span>
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.md }}>
+            {result.mcqAnswers.map((ans, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: spacing.md,
+                  background: ans.isCorrect ? colors.success_light : colors.danger_light,
+                  border: `2px solid ${ans.isCorrect ? colors.success : colors.danger}`,
+                  borderRadius: borderRadius.md,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: spacing.md,
+                  flexWrap: 'wrap'
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <strong style={{ color: colors.gray_900 }}>Question {ans.questionIndex + 1}</strong>
+                  <div style={{ ...typography.body_sm, color: colors.gray_700, marginTop: spacing.xs }}>
+                    <span>Your Answer: <strong>{ans.selectedAnswer !== null ? `Option ${String.fromCharCode(65 + ans.selectedAnswer)}` : 'Not answered'}</strong></span>
+                    {' | '}
+                    <span>Correct Answer: <strong style={{ color: ans.isCorrect ? colors.success_dark : colors.danger_dark }}>Option {String.fromCharCode(65 + ans.correctAnswer)}</strong></span>
+                  </div>
                 </div>
-              </div>
-              <div className={ans.isCorrect ? 'badge success' : 'badge danger'}>
-                {ans.isCorrect ? '✓ Correct' : '✗ Wrong'} ({ans.marksAwarded} marks)
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {result.codingAnswers && result.codingAnswers.length > 0 && (
-        <div className="section">
-          <h3>Coding Results (Score: {result.codingScore})</h3>
-          {result.codingAnswers.map((ans, idx) => (
-            <div key={idx} className="question-block">
-              <div>
-                <strong>Question {ans.questionIndex + 1}</strong>
-                <div className={ans.isCorrect ? 'badge success' : 'badge danger'}>
+                <div style={{
+                  padding: `${spacing.xs} ${spacing.md}`,
+                  background: ans.isCorrect ? colors.success : colors.danger,
+                  color: colors.white,
+                  borderRadius: borderRadius.full,
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  whiteSpace: 'nowrap'
+                }}>
                   {ans.isCorrect ? '✓ Correct' : '✗ Wrong'} ({ans.marksAwarded} marks)
                 </div>
               </div>
-              <div>
-                <label>Your Output:</label>
-                <pre style={{ background: '#f5f5f5', padding: '10px', borderRadius: '4px' }}>
-                  {ans.submittedOutput || '(No output submitted)'}
-                </pre>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Coding Results */}
+      {result.codingAnswers && result.codingAnswers.length > 0 && (
+        <div style={{
+          background: colors.white,
+          padding: spacing.xl,
+          borderRadius: borderRadius.lg,
+          marginBottom: spacing.lg,
+          border: `1px solid ${colors.gray_200}`,
+          boxShadow: colors.shadow_sm
+        }}>
+          <h3 style={{ ...typography.h3, margin: 0, marginBottom: spacing.lg, color: colors.gray_900 }}>
+            Coding Results <span style={{ color: colors.gray_600, fontSize: '16px' }}>(Score: {result.codingScore})</span>
+          </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+            {result.codingAnswers.map((ans, idx) => (
+              <div
+                key={idx}
+                style={{
+                  padding: spacing.lg,
+                  background: colors.gray_50,
+                  border: `2px solid ${ans.isCorrect ? colors.success : colors.danger}`,
+                  borderRadius: borderRadius.md
+                }}
+              >
+                <div style={{ marginBottom: spacing.md, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <strong style={{ color: colors.gray_900 }}>Question {ans.questionIndex + 1}</strong>
+                  <div style={{
+                    padding: `${spacing.xs} ${spacing.md}`,
+                    background: ans.isCorrect ? colors.success : colors.danger,
+                    color: colors.white,
+                    borderRadius: borderRadius.full,
+                    fontSize: '13px',
+                    fontWeight: '600'
+                  }}>
+                    {ans.isCorrect ? '✓ Correct' : '✗ Wrong'} ({ans.marksAwarded} marks)
+                  </div>
+                </div>
+                <div style={{ marginBottom: spacing.md }}>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.xs, color: colors.gray_700 }}>
+                    Your Output:
+                  </label>
+                  <pre style={{
+                    background: colors.white,
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    border: `1px solid ${colors.gray_300}`,
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    overflow: 'auto',
+                    margin: 0
+                  }}>
+                    {ans.submittedOutput || '(No output submitted)'}
+                  </pre>
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontWeight: '600', marginBottom: spacing.xs, color: colors.gray_700 }}>
+                    Expected Output:
+                  </label>
+                  <pre style={{
+                    background: colors.success_light,
+                    padding: spacing.md,
+                    borderRadius: borderRadius.md,
+                    border: `1px solid ${colors.success}`,
+                    fontSize: '13px',
+                    fontFamily: 'monospace',
+                    overflow: 'auto',
+                    margin: 0
+                  }}>
+                    {ans.expectedOutput}
+                  </pre>
+                </div>
               </div>
-              <div>
-                <label>Expected Output:</label>
-                <pre style={{ background: '#f5f5f5', padding: '10px', borderRadius: '4px' }}>
-                  {ans.expectedOutput}
-                </pre>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -11,12 +11,20 @@ export const getMe = async () => {
 }
 
 export const createStudent = async (payload) => {
-  const { data } = await api.post('/auth/create-student', payload)
+  const { data } = await api.post('/auth/create-student', {
+    username: payload.username,
+    email: payload.email,
+    password: payload.password
+  })
   return data?.data
 }
 
 export const createAdmin = async (payload) => {
-  const { data } = await api.post('/auth/create-admin', payload)
+  const { data } = await api.post('/auth/create-admin', {
+    username: payload.username,
+    email: payload.email,
+    password: payload.password
+  })
   return data?.data
 }
 

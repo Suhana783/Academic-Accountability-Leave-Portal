@@ -9,7 +9,7 @@ import { asyncHandler } from '../middleware/errorHandler.js'
 const deleteUserWithData = async (user) => {
   const deletedUserInfo = {
     id: user._id,
-    name: user.name,
+    username: user.name,
     email: user.email,
     role: user.role
   }
@@ -90,7 +90,7 @@ export const login = asyncHandler(async (req, res) => {
   successResponse(res, 200, 'Login successful', {
     user: {
       id: user._id,
-      name: user.name,
+      username: user.name,
       email: user.email,
       role: user.role,
       department: user.department,
@@ -122,11 +122,11 @@ export const logout = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/create-student
 // @access  Private/Admin
 export const createStudent = asyncHandler(async (req, res) => {
-  const { name, email, password, department } = req.body
+  const { username, email, password } = req.body
 
   // Validate required fields
-  if (!name || !email || !password) {
-    return errorResponse(res, 400, 'Please provide name, email, and password')
+  if (!username || !email || !password) {
+    return errorResponse(res, 400, 'Please provide username, email, and password')
   }
 
   // Check if user already exists
@@ -137,22 +137,19 @@ export const createStudent = asyncHandler(async (req, res) => {
 
   // Create student user
   const user = await User.create({
-    name,
+    name: username,
     email,
     password,
-    role: 'student',
-    department
+    role: 'student'
   })
 
   // Send response (no token for created user)
   successResponse(res, 201, 'Student created successfully', {
     user: {
       id: user._id,
-      name: user.name,
+      username: user.name,
       email: user.email,
-      role: user.role,
-      department: user.department,
-      leaveBalance: user.leaveBalance
+      role: user.role
     }
   })
 })
@@ -161,11 +158,11 @@ export const createStudent = asyncHandler(async (req, res) => {
 // @route   POST /api/auth/create-admin
 // @access  Private/Admin
 export const createAdmin = asyncHandler(async (req, res) => {
-  const { name, email, password } = req.body
+  const { username, email, password } = req.body
 
   // Validate required fields
-  if (!name || !email || !password) {
-    return errorResponse(res, 400, 'Please provide name, email, and password')
+  if (!username || !email || !password) {
+    return errorResponse(res, 400, 'Please provide username, email, and password')
   }
 
   // Check if user already exists
@@ -176,7 +173,7 @@ export const createAdmin = asyncHandler(async (req, res) => {
 
   // Create admin user
   const user = await User.create({
-    name,
+    name: username,
     email,
     password,
     role: 'admin'
@@ -186,7 +183,7 @@ export const createAdmin = asyncHandler(async (req, res) => {
   successResponse(res, 201, 'Admin created successfully', {
     user: {
       id: user._id,
-      name: user.name,
+      username: user.name,
       email: user.email,
       role: user.role
     }
@@ -221,7 +218,7 @@ export const removeUser = asyncHandler(async (req, res) => {
   // Get user details before deletion
   const deletedUserInfo = {
     id: user._id,
-    name: user.name,
+    username: user.name,
     email: user.email,
     role: user.role
   }
@@ -300,18 +297,14 @@ export const removeUserByEmail = asyncHandler(async (req, res) => {
 // @route   GET /api/auth/students
 // @access  Private/Admin
 export const getAllStudents = asyncHandler(async (req, res) => {
-  const students = await User.find({ role: 'student' }).select('+password')
+  const students = await User.find({ role: 'student' })
 
   successResponse(res, 200, 'Students retrieved successfully', {
     students: students.map(s => ({
       id: s._id,
-      name: s.name,
+      username: s.name,
       email: s.email,
-      password: s.password,
-      department: s.department,
-      leaveBalance: s.leaveBalance,
-      isActive: s.isActive,
-      createdAt: s.createdAt
+      role: s.role
     }))
   })
 })
@@ -320,17 +313,14 @@ export const getAllStudents = asyncHandler(async (req, res) => {
 // @route   GET /api/auth/admins
 // @access  Private/Admin
 export const getAllAdmins = asyncHandler(async (req, res) => {
-  const admins = await User.find({ role: 'admin' }).select('+password')
+  const admins = await User.find({ role: 'admin' })
 
   successResponse(res, 200, 'Admins retrieved successfully', {
     admins: admins.map(a => ({
       id: a._id,
-      name: a.name,
+      username: a.name,
       email: a.email,
-      password: a.password,
-      department: a.department,
-      isActive: a.isActive,
-      createdAt: a.createdAt
+      role: a.role
     }))
   })
 });

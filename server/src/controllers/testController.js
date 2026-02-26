@@ -1,6 +1,7 @@
 import Test from '../models/Test.js'
 import Leave from '../models/Leave.js'
 import TestResult from '../models/TestResult.js'
+import User from '../models/User.js'
 import { successResponse, errorResponse } from '../utils/responseHelper.js'
 import { asyncHandler } from '../middleware/errorHandler.js'
 import evaluationService from '../services/evaluationService.js'
@@ -210,9 +211,18 @@ export const getMyTests = asyncHandler(async (req, res) => {
     .populate('createdBy', 'name email')
     .sort('-createdAt')
 
+  // Filter out tests that have already been submitted by this student
+  const testResults = await TestResult.find({ 
+    student: req.user._id,
+    test: { $in: tests.map(t => t._id) }
+  })
+  
+  const submittedTestIds = new Set(testResults.map(result => result.test.toString()))
+  const availableTests = tests.filter(test => !submittedTestIds.has(test._id.toString()))
+
   successResponse(res, 200, 'Tests retrieved successfully', {
-    count: tests.length,
-    tests
+    count: availableTests.length,
+    tests: availableTests
   })
 })
 
@@ -691,7 +701,16 @@ export const generateAutomaticTest = asyncHandler(async (req, res) => {
     })
 
     // Update leave status to test_assigned
-    const leave = await Leave.findById(leaveId)
+    const leave = await Leave.findById(leaveId).populate('student')
+    
+    // If leave was previously approved, restore the leave balance before reassigning test
+    if (leave.status === 'approved') {
+      const user = await User.findById(leave.student._id)
+      user.leaveBalance += leave.totalDays
+      await user.save()
+    }
+    
+    // Reset status to test_assigned (neutral state)
     leave.status = 'test_assigned'
     leave.reviewedBy = req.user._id
     leave.reviewedAt = new Date()

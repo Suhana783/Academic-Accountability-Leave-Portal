@@ -83,7 +83,7 @@ class EvaluationService {
   }
 
   /**
-   * Update leave status based on test result
+   * Update leave status based on test result (admin has final decision)
    */
   async updateLeaveStatus(leaveId, passed) {
     try {
@@ -93,11 +93,16 @@ class EvaluationService {
         throw new Error('Leave not found')
       }
 
-      leave.status = passed ? 'approved' : 'rejected'
+      // Do not auto-approve/reject; keep admin as final authority.
+      if (['approved', 'rejected'].includes(leave.status)) {
+        return leave
+      }
+
+      leave.status = 'test_assigned'
       leave.reviewedAt = new Date()
       leave.adminRemarks = passed
-        ? 'Leave approved - test passed'
-        : 'Leave rejected - test failed'
+        ? 'Test passed - awaiting admin decision'
+        : 'Test failed - awaiting admin decision'
 
       await leave.save()
 
@@ -149,8 +154,8 @@ class EvaluationService {
         testResult,
         leaveStatus: updatedLeave.status,
         message: resultData.passed
-          ? 'Congratulations! You passed the test. Your leave has been approved.'
-          : 'Unfortunately, you did not pass the test. Your leave has been rejected.'
+          ? 'You passed the test. Your leave is awaiting admin decision.'
+          : 'You did not pass the test. Your leave is awaiting admin decision.'
       }
     } catch (error) {
       throw error

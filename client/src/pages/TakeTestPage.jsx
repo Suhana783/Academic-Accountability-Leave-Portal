@@ -1,343 +1,128 @@
-import { useEffect, useState, useRef } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
-import { getTestById, submitTest } from '../services/testService'
-import { useAuth } from '../context/AuthContext'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { getMyTests } from '../services/testService'
+import { colors, spacing, borderRadius, typography, transitions } from '../utils/designSystem'
 
 const TakeTestPage = () => {
-  const { id } = useParams()
-  const navigate = useNavigate()
-  const { user } = useAuth()
-  const [test, setTest] = useState(null)
+  const [tests, setTests] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [mcqAnswers, setMcqAnswers] = useState([])
-  const [codingAnswers, setCodingAnswers] = useState([])
-  const [timeRemaining, setTimeRemaining] = useState(0)
-  const [tabSwitchCount, setTabSwitchCount] = useState(0)
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [showWarning, setShowWarning] = useState(false)
-  const startTimeRef = useRef(Date.now())
-  const timerRef = useRef(null)
-  const lastSwitchAtRef = useRef(0)
-  const isSubmittingRef = useRef(false)
-  const isAdmin = user?.role === 'admin'
-
-  // Shuffle array function
-  const shuffleArray = (array) => {
-    const shuffled = [...array]
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
-    }
-    return shuffled
-  }
 
   useEffect(() => {
-    const fetchTest = async () => {
+    const fetchTests = async () => {
+      console.log('TakeTestPage loaded')
       try {
-        const data = await getTestById(id)
-        
-        // Add original index to each question before shuffling
-        if (data.mcqQuestions && data.mcqQuestions.length > 0) {
-          data.mcqQuestions = data.mcqQuestions.map((q, idx) => ({
-            ...q,
-            originalIndex: idx
-          }))
-          data.mcqQuestions = shuffleArray(data.mcqQuestions)
-        }
-        
-        setTest(data)
-        setTimeRemaining(data.duration || 3600) // Default 1 hour
-        
-        // Initialize answers arrays with original question index
-        setMcqAnswers(
-          (data?.mcqQuestions || []).map((q) => ({
-            questionIndex: q.originalIndex,
-            selectedAnswer: null
-          }))
-        )
-        setCodingAnswers(
-          (data?.codingQuestions || []).map((_, idx) => ({
-            questionIndex: idx,
-            submittedOutput: ''
-          }))
-        )
+        const data = await getMyTests()
+        const assignedTests = (data || []).filter((test) => test?.leave?.status === 'test_assigned')
+        setTests(assignedTests)
+        console.log('Assigned tests:', assignedTests)
       } catch (err) {
         setError(err.message)
       } finally {
         setLoading(false)
       }
     }
-    fetchTest()
-  }, [id])
 
-  // Timer countdown
-  useEffect(() => {
-    if (!test || timeRemaining <= 0) return
-
-    timerRef.current = setInterval(() => {
-      setTimeRemaining((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current)
-          if (!isAdmin) {
-            handleAutoSubmit()
-          }
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current)
-    }
-  }, [test, isAdmin])
-
-  // Tab switch detection (anti-cheating) with debounce and submission guard
-  useEffect(() => {
-    const incrementSwitchIfNeeded = () => {
-      if (isSubmittingRef.current) return
-      const now = Date.now()
-      if (now - lastSwitchAtRef.current < 1200) return
-      lastSwitchAtRef.current = now
-      setTabSwitchCount((prev) => prev + 1)
-      setShowWarning(true)
-      setTimeout(() => setShowWarning(false), 3000)
-    }
-
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        incrementSwitchIfNeeded()
-      }
-    }
-
-    const handleBlur = () => {
-      if (!document.hidden) {
-        incrementSwitchIfNeeded()
-      }
-    }
-
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('blur', handleBlur)
-
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('blur', handleBlur)
-    }
+    fetchTests()
   }, [])
 
-  // Format time as MM:SS
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-
-  const handleAutoSubmit = async () => {
-    if (isSubmitting || isAdmin) return
-    setIsSubmitting(true)
-    isSubmittingRef.current = true
-    const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000)
-    
-    try {
-      const payload = {
-        mcqAnswers: mcqAnswers,
-        codingAnswers: codingAnswers,
-        timeTaken,
-        tabSwitchCount
-      }
-      await submitTest(id, payload)
-      navigate(`/test/${id}/result`)
-    } catch (err) {
-      setError(err.message)
-      setIsSubmitting(false)
-      isSubmittingRef.current = false
-    }
-  }
-
-  const handleMcqChange = (originalIndex, value) => {
-    setMcqAnswers((prev) =>
-      prev.map((item) =>
-        item.questionIndex === originalIndex ? { ...item, selectedAnswer: Number(value) } : item
-      )
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: spacing.xxxl }}>
+        <div style={{ fontSize: '48px', marginBottom: spacing.lg }}>⏳</div>
+        <p style={{ ...typography.body_lg, color: colors.gray_600 }}>Loading assigned tests...</p>
+      </div>
     )
   }
 
-  const handleCodingChange = (qIndex, value) => {
-    setCodingAnswers((prev) =>
-      prev.map((item) =>
-        item.questionIndex === qIndex ? { ...item, submittedOutput: value } : item
-      )
+  if (error) {
+    return (
+      <div style={{ padding: spacing.xl, background: colors.danger_light, borderRadius: borderRadius.lg, color: colors.danger_dark }}>
+        {error}
+      </div>
     )
   }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    if (isSubmitting || isAdmin) return
-    setIsSubmitting(true)
-    isSubmittingRef.current = true
-    setError('')
-    
-    const timeTaken = Math.floor((Date.now() - startTimeRef.current) / 1000)
-    
-    try {
-      const payload = {
-        mcqAnswers: mcqAnswers,
-        codingAnswers: codingAnswers,
-        timeTaken,
-        tabSwitchCount
-      }
-      await submitTest(id, payload)
-      navigate(`/test/${id}/result`)
-    } catch (err) {
-      setError(err.message)
-      setIsSubmitting(false)
-      isSubmittingRef.current = false
-    }
-  }
-
-  if (loading) return <p className="muted">Loading test...</p>
-  if (error && !test) return <p className="error">{error}</p>
-  if (!test) return <p className="muted">Test not found.</p>
-
-  const timeIsLow = timeRemaining <= 300 // Less than 5 minutes
 
   return (
-    <div className="card">
-      {isAdmin && (
-        <div style={{
-          background: '#e0f2fe',
-          border: '1px solid #60a5fa',
-          color: '#1d4ed8',
-          padding: '12px 14px',
-          borderRadius: '8px',
-          marginBottom: '16px',
-          fontWeight: 600
-        }}>
-          Admin view: test is read-only. Submission and timer auto-submit are disabled.
-        </div>
-      )}
+    <div>
+      <div style={{ marginBottom: spacing.xxxl }}>
+        <h1 style={{ ...typography.h1, margin: 0, color: colors.gray_900 }}>Take Test</h1>
+        <p style={{ ...typography.body_lg, color: colors.gray_600, margin: `${spacing.md} 0 0 0` }}>
+          View and start your assigned tests
+        </p>
+      </div>
 
-      {/* Timer Display (hidden for admin) */}
-      {!isAdmin && (
-        <div style={{ 
-          position: 'sticky', 
-          top: 0, 
-          background: timeIsLow ? '#fee' : '#e8f4ff', 
-          padding: '12px', 
-          borderRadius: '6px',
-          marginBottom: '20px',
-          border: timeIsLow ? '2px solid #f44' : '2px solid #4a90e2',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          zIndex: 100
+      {tests.length === 0 ? (
+        <div style={{
+          background: colors.white,
+          border: `1px solid ${colors.gray_200}`,
+          borderRadius: borderRadius.lg,
+          padding: spacing.xl,
+          textAlign: 'center',
+          boxShadow: colors.shadow_sm
         }}>
-          <div>
-            <strong style={{ color: timeIsLow ? '#d00' : '#333' }}>
-              Time Remaining: {formatTime(timeRemaining)}
-            </strong>
-            {timeIsLow && <span style={{ marginLeft: '10px', color: '#d00' }}>⚠️ Hurry Up!</span>}
+          <div style={{ fontSize: '40px', marginBottom: spacing.md }}>📝</div>
+          <div style={{ ...typography.h4, color: colors.gray_900, marginBottom: spacing.sm }}>
+            No tests assigned yet
           </div>
-          {tabSwitchCount > 0 && (
-            <div style={{ color: '#e67700' }}>
-              ⚠️ Tab Switches: {tabSwitchCount}
-            </div>
-          )}
+          <p style={{ ...typography.body, color: colors.gray_600, margin: 0 }}>
+            Check back later once an admin assigns a test to your leave request.
+          </p>
         </div>
-      )}
-
-      {/* Warning for tab switch */}
-      {!isAdmin && showWarning && (
-        <div style={{
-          position: 'fixed',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          background: '#ff4444',
-          color: 'white',
-          padding: '20px 40px',
-          borderRadius: '8px',
-          fontSize: '18px',
-          fontWeight: 'bold',
-          zIndex: 1000,
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-        }}>
-          ⚠️ Warning: Tab switch detected!
-        </div>
-      )}
-      
-      <h2>{test.title}</h2>
-      <p className="muted">{test.description}</p>
-      <p className="muted"><strong>Total Marks:</strong> {test.totalMarks} | <strong>Pass Marks:</strong> {test.passMarks}</p>
-      
-      <form className="form" onSubmit={handleSubmit}>
-        {test.mcqQuestions && test.mcqQuestions.length > 0 && (
-          <>
-            <h3>MCQ Questions</h3>
-            {test.mcqQuestions.map((q, idx) => (
-              <div key={idx} className="question-block">
-                <div className="question-title">{idx + 1}. {q.question}</div>
-                <div className="muted">Marks: {q.marks}</div>
-                <div className="options">
-                  {q.options.map((opt, optIndex) => (
-                    <label key={optIndex} className="option">
-                      <input
-                        type="radio"
-                        name={`mcq-${idx}`}
-                        value={optIndex}
-                        checked={mcqAnswers.find(a => a.questionIndex === q.originalIndex)?.selectedAnswer === optIndex}
-                        onChange={(e) => handleMcqChange(q.originalIndex, e.target.value)}
-                      />
-                      {opt}
-                    </label>
-                  ))}
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: spacing.lg }}>
+          {tests.map((test) => (
+            <div
+              key={test._id}
+              style={{
+                background: colors.white,
+                border: `1px solid ${colors.gray_200}`,
+                borderRadius: borderRadius.lg,
+                padding: spacing.lg,
+                boxShadow: colors.shadow_sm,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: spacing.md,
+                transition: `all ${transitions.base}`
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ ...typography.h4, color: colors.gray_900, margin: 0 }}>{test.title}</div>
+                <span style={{ fontSize: '24px', opacity: 0.6 }}>🧪</span>
+              </div>
+              <p style={{ ...typography.body_sm, color: colors.gray_600, margin: 0 }}>
+                {test.description || 'No description provided.'}
+              </p>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+                <div style={{ ...typography.body_sm, color: colors.gray_500 }}>
+                  Duration: {Math.round((test.duration || 3600) / 60)} mins
                 </div>
+                <Link
+                  to={`/test/${test._id}`}
+                  style={{
+                    padding: `${spacing.sm} ${spacing.lg}`,
+                    background: colors.primary,
+                    color: colors.white,
+                    borderRadius: borderRadius.md,
+                    textDecoration: 'none',
+                    fontWeight: '600',
+                    fontSize: '14px',
+                    transition: `all ${transitions.base}`
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = colors.primary_dark
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = colors.primary
+                  }}
+                >
+                  Start Test
+                </Link>
               </div>
-            ))}
-          </>
-        )}
-
-        {test.codingQuestions && test.codingQuestions.length > 0 && (
-          <>
-            <h3>Coding Questions</h3>
-            {test.codingQuestions.map((q, idx) => (
-              <div key={idx} className="question-block">
-                <div className="question-title">{idx + 1}. {q.question}</div>
-                <div className="muted">Marks: {q.marks}</div>
-                <label>Your Output (provide exact output)</label>
-                <textarea
-                  rows="4"
-                  value={codingAnswers[idx]?.submittedOutput || ''}
-                  onChange={(e) => handleCodingChange(idx, e.target.value)}
-                  placeholder="Enter the output of your code here..."
-                />
-              </div>
-            ))}
-          </>
-        )}
-
-        {error && <div className="error">{error}</div>}
-        {!isAdmin && (
-          <button 
-            className="btn" 
-            type="submit" 
-            disabled={isSubmitting || timeRemaining === 0}
-          >
-            {isSubmitting ? 'Submitting...' : 'Submit Test'}
-          </button>
-        )}
-        {isAdmin && (
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={() => navigate(-1)}
-            style={{ marginTop: '8px' }}
-          >
-            ← Back
-          </button>
-        )}
-      </form>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

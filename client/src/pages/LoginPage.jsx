@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { colors, spacing, borderRadius, typography, transitions } from '../utils/designSystem'
 
 const LoginPage = () => {
   const { login, loading, user } = useAuth()
@@ -8,27 +9,8 @@ const LoginPage = () => {
   
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
-  // Lock the viewport to prevent any vertical scroll while on the login page
-  useEffect(() => {
-    const html = document.documentElement
-    const body = document.body
-    const prevHtmlHeight = html.style.height
-    const prevBodyHeight = body.style.height
-    const prevBodyOverflow = body.style.overflow
-
-    html.style.height = '100%'
-    body.style.height = '100%'
-    body.style.overflow = 'hidden'
-
-    return () => {
-      html.style.height = prevHtmlHeight
-      body.style.height = prevBodyHeight
-      body.style.overflow = prevBodyOverflow
-    }
-  }, [])
-
-  // Redirect when already logged in
   useEffect(() => {
     if (user?.role === 'admin') navigate('/admin')
     else if (user?.role) navigate('/student')
@@ -49,8 +31,6 @@ const LoginPage = () => {
       }
 
       const loginUser = await login(form.email, form.password)
-      
-      // Role-based redirection
       if (loginUser.role === 'admin') {
         navigate('/admin')
       } else {
@@ -61,106 +41,65 @@ const LoginPage = () => {
     }
   }
 
-  // Features list for left section
   const features = [
-    {
-      icon: '✓',
-      title: 'Easy Leave Management',
-      description: 'Submit and track your leave requests effortlessly.'
-    },
-    {
-      icon: '⚡',
-      title: 'Real-time Updates',
-      description: 'Get instant notifications on your request status'
-    },
-    {
-      icon: '🔒',
-      title: 'Secure & Reliable',
-      description: 'Your data is protected with enterprise-grade security'
-    }
+    { icon: '📋', title: 'Leave Management', desc: 'Submit and track requests easily' },
+    { icon: '⚡', title: 'Real-time Updates', desc: 'Instant status notifications' },
+    { icon: '🔒', title: 'Secure & Reliable', desc: 'Enterprise-grade security' }
   ]
 
   return (
     <div style={{
-      height: '100vh',
-      overflow: 'hidden',
       display: 'flex',
-      margin: 0,
-      padding: 0
+      minHeight: '100vh',
+      background: colors.bg_secondary,
     }}>
-      {/* Left Side - Gradient Section with Welcome Content */}
+      {/* Left Section - Gradient with Features */}
       <div style={{
-        flex: '0 0 50%',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        flex: '0 0 45%',
+        background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primary_dark} 100%)`,
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
         justifyContent: 'center',
-        padding: '60px 40px',
-        color: 'white',
-        minHeight: '100vh'
+        padding: spacing.xxxl,
+        color: colors.white,
       }}>
         <div style={{ maxWidth: '420px' }}>
-          <h1 style={{
-            fontSize: '56px',
-            fontWeight: '800',
-            margin: '0 0 12px 0',
-            lineHeight: '1.2',
-            letterSpacing: '-1px'
-          }}>
-            Welcome to
-          </h1>
-          <h2 style={{
-            fontSize: '56px',
-            fontWeight: '800',
-            margin: '0 0 32px 0',
-            color: '#FFD700',
-            lineHeight: '1.2',
-            letterSpacing: '-1px'
-          }}>
-            Academic Leave<br />Portal
-          </h2>
+          <div style={{ marginBottom: spacing.xxxl }}>
+            <div style={{ fontSize: '48px', marginBottom: spacing.lg }}>🎓</div>
+            <h1 style={{ ...typography.h1, color: colors.white, margin: 0, marginBottom: spacing.md }}>
+              LeaveHub
+            </h1>
+            <p style={{ ...typography.body_lg, color: 'rgba(255, 255, 255, 0.9)', margin: 0 }}>
+              Academic Accountability Leave Portal
+            </p>
+          </div>
+
           <p style={{
-            fontSize: '16px',
-            color: 'rgba(255, 255, 255, 0.9)',
-            margin: '0 0 48px 0',
+            ...typography.body_lg,
+            color: 'rgba(255, 255, 255, 0.95)',
+            margin: `0 0 ${spacing.xxxl} 0`,
             lineHeight: '1.6'
           }}>
-            Streamline your academic accountability and leave management with our comprehensive portal system.
+            Streamline your leave management with our comprehensive portal system. Submit, track, and manage your academic leaves with ease.
           </p>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {features.map((feature, idx) => (
-              <div key={idx} style={{ display: 'flex', gap: '16px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+            {features.map((feat, idx) => (
+              <div key={idx} style={{ display: 'flex', gap: spacing.lg, alignItems: 'flex-start' }}>
                 <div style={{
-                  width: '24px',
-                  height: '24px',
-                  borderRadius: '50%',
-                  background: 'rgba(255, 255, 255, 0.3)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '14px',
-                  flexShrink: 0,
-                  marginTop: '2px'
+                  fontSize: '28px',
+                  minWidth: '40px',
+                  textAlign: 'center'
                 }}>
-                  {feature.icon}
+                  {feat.icon}
                 </div>
                 <div>
-                  <div style={{
-                    fontWeight: '700',
-                    fontSize: '15px',
-                    marginBottom: '4px'
-                  }}>
-                    {feature.title}
+                  <div style={{ ...typography.h4, color: colors.white, margin: 0, marginBottom: spacing.sm }}>
+                    {feat.title}
                   </div>
-                  <div style={{
-                    fontSize: '13px',
-                    color: 'rgba(255, 255, 255, 0.8)',
-                    lineHeight: '1.4'
-                  }}>
-                    {feature.description}
-                  </div>
+                  <p style={{ ...typography.body_sm, color: 'rgba(255, 255, 255, 0.85)', margin: 0 }}>
+                    {feat.desc}
+                  </p>
                 </div>
               </div>
             ))}
@@ -168,79 +107,184 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* Right Side - White Background Section */}
+      {/* Right Section - Login Form */}
       <div style={{
-        flex: '0 0 50%',
-        background: '#ffffff',
+        flex: '0 0 55%',
         display: 'flex',
         flexDirection: 'column',
-        alignItems: 'center',
         justifyContent: 'center',
-        padding: '40px 32px',
-        minHeight: '100vh'
+        alignItems: 'center',
+        padding: spacing.xxxl,
       }}>
-        <div style={{
-          width: '100%',
-          maxWidth: '380px'
-        }}>
-          <div className="card" style={{ border: 'none', boxShadow: 'none', background: 'transparent', padding: 0 }}>
-            <h2 style={{ textAlign: 'center', marginBottom: '8px', fontSize: '24px' }}>
-              Academic Accountability<br />Leave Portal
+        <div style={{ width: '100%', maxWidth: '420px' }}>
+          <div style={{ marginBottom: spacing.xxxl }}>
+            <h2 style={{ ...typography.h2, color: colors.gray_900, margin: 0, marginBottom: spacing.md }}>
+              Welcome Back
             </h2>
-            <p className="muted" style={{ textAlign: 'center', marginBottom: '28px' }}>
-              Login with your email and password
+            <p style={{ ...typography.body_lg, color: colors.gray_600, margin: 0 }}>
+              Login to your account to continue
             </p>
-            
-            <form className="form" onSubmit={onSubmit}>
-              <div>
-                <label>Email</label>
-                <input 
-                  name="email" 
-                  type="email" 
-                  value={form.email} 
-                  onChange={onChange}
-                  placeholder="Enter your email"
-                  required 
-                />
-              </div>
+          </div>
 
-              <div>
-                <label>Password</label>
+          <form onSubmit={onSubmit} style={{ display: 'flex', flexDirection: 'column', gap: spacing.lg }}>
+            {/* Email Field */}
+            <div>
+              <label style={{
+                display: 'block',
+                ...typography.label,
+                color: colors.gray_700,
+                marginBottom: spacing.sm
+              }}>
+                Email Address
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={onChange}
+                placeholder="you@example.com"
+                required
+                style={{
+                  width: '100%',
+                  padding: spacing.md,
+                  borderRadius: borderRadius.md,
+                  border: `1.5px solid ${colors.gray_200}`,
+                  fontSize: '14px',
+                  fontFamily: 'inherit',
+                  transition: `all ${transitions.base}`,
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => {
+                  e.currentTarget.style.borderColor = colors.primary
+                  e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`
+                }}
+                onBlur={(e) => {
+                  e.currentTarget.style.borderColor = colors.gray_200
+                  e.currentTarget.style.boxShadow = 'none'
+                }}
+              />
+            </div>
+
+            {/* Password Field */}
+            <div>
+              <label style={{
+                display: 'block',
+                ...typography.label,
+                color: colors.gray_700,
+                marginBottom: spacing.sm
+              }}>
+                Password
+              </label>
+              <div style={{ position: 'relative' }}>
                 <input
+                  type={showPassword ? 'text' : 'password'}
                   name="password"
-                  type="password"
                   value={form.password}
                   onChange={onChange}
                   placeholder="Enter your password"
                   required
+                  style={{
+                    width: '100%',
+                    padding: spacing.md,
+                    paddingRight: spacing.xxxl,
+                    borderRadius: borderRadius.md,
+                    border: `1.5px solid ${colors.gray_200}`,
+                    fontSize: '14px',
+                    fontFamily: 'inherit',
+                    transition: `all ${transitions.base}`,
+                    boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => {
+                    e.currentTarget.style.borderColor = colors.primary
+                    e.currentTarget.style.boxShadow = `0 0 0 3px ${colors.primary}20`
+                  }}
+                  onBlur={(e) => {
+                    e.currentTarget.style.borderColor = colors.gray_200
+                    e.currentTarget.style.boxShadow = 'none'
+                  }}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  style={{
+                    position: 'absolute',
+                    right: spacing.md,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontSize: '18px',
+                    padding: 0,
+                  }}
+                >
+                  {showPassword ? '👁️' : '👁️‍🗨️'}
+                </button>
               </div>
-
-              {error && <div className="error">{error}</div>}
-
-              <button className="btn" type="submit" disabled={loading}>
-                {loading ? 'Logging in...' : 'Login'}
-              </button>
-            </form>
-            
-            <div className="info-box" style={{ marginTop: '24px', fontSize: '13px' }}>
-              <strong>Note:</strong> Only administrators can create new user accounts. 
-              Please contact your administrator for account creation.
             </div>
+
+            {/* Error Message */}
+            {error && (
+              <div style={{
+                padding: spacing.md,
+                background: colors.danger_light,
+                border: `1px solid ${colors.danger}20`,
+                borderRadius: borderRadius.md,
+                color: colors.danger,
+                fontSize: '14px',
+                fontWeight: '500'
+              }}>
+                {error}
+              </div>
+            )}
+
+            {/* Submit Button */}
+            <button
+              type="submit"
+              disabled={loading}
+              style={{
+                padding: `${spacing.md} ${spacing.lg}`,
+                background: loading ? colors.gray_400 : colors.primary,
+                color: colors.white,
+                border: 'none',
+                borderRadius: borderRadius.md,
+                ...typography.body,
+                fontWeight: '700',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                transition: `all ${transitions.base}`,
+                width: '100%',
+              }}
+              onMouseEnter={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.background = colors.primary_dark
+                  e.currentTarget.style.boxShadow = colors.shadow_md
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading) {
+                  e.currentTarget.style.background = colors.primary
+                  e.currentTarget.style.boxShadow = 'none'
+                }
+              }}
+            >
+              {loading ? '🔄 Logging in...' : '🚀 Login'}
+            </button>
+          </form>
+
+          {/* Info Box */}
+          <div style={{
+            marginTop: spacing.xl,
+            padding: spacing.lg,
+            background: colors.primary_light,
+            border: `1px solid ${colors.primary}30`,
+            borderRadius: borderRadius.md,
+            ...typography.body_sm,
+            color: colors.primary_dark
+          }}>
+            <strong>ℹ️ Note:</strong> Only administrators can create new accounts. Contact your administrator to get access.
           </div>
         </div>
       </div>
-
-      <style>{`
-        @media (max-width: 768px) {
-          div[style*="flex: '0 0 50%'"] {
-            flex-basis: 100% !important;
-          }
-          div[style*="background: 'linear-gradient'"] {
-            display: none !important;
-          }
-        }
-      `}</style>
     </div>
   )
 }

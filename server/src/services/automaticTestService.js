@@ -136,12 +136,44 @@ const QUESTION_BANK = {
   ]
 }
 
-const pickQuestions = (subject, numberOfQuestions) => {
-  const key = subject?.toLowerCase()
-  const pool = QUESTION_BANK[key]
+const SUBJECT_ALIASES = {
+  javascript: ['javascript', 'js', 'java script'],
+  'react.js': ['react', 'reactjs', 'react.js', 'react js'],
+  python: ['python', 'py']
+}
+
+const normalizeTokens = (subject) => {
+  if (!subject) return []
+  return subject
+    .split(',')
+    .map((token) => token.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+const resolveSubjectKeys = (subject) => {
+  const tokens = normalizeTokens(subject)
+  const keys = new Set()
+  tokens.forEach((token) => {
+    Object.entries(SUBJECT_ALIASES).forEach(([key, aliases]) => {
+      if (aliases.includes(token)) {
+        keys.add(key)
+      }
+    })
+  })
+  return Array.from(keys)
+}
+
+const getQuestionPool = (subject) => {
+  const keys = resolveSubjectKeys(subject)
+  const pool = keys.flatMap((key) => QUESTION_BANK[key] || [])
   if (!pool || pool.length === 0) {
     throw new Error('No predefined questions available for this subject.')
   }
+  return pool
+}
+
+const pickQuestions = (subject, numberOfQuestions) => {
+  const pool = getQuestionPool(subject)
 
   // Shuffle a shallow copy and take the requested amount (with wrap if needed)
   const shuffled = [...pool].sort(() => Math.random() - 0.5)
@@ -229,16 +261,15 @@ class AutomaticTestService {
    * Get available subjects (no longer needed but kept for compatibility)
    */
   async getAvailableSubjects() {
-    return Object.keys(QUESTION_BANK).map((key) => key.replace(/\b\w/g, (c) => c.toUpperCase()))
+    return ['JavaScript', 'React.js', 'Python']
   }
 
   /**
    * Get question count from predefined bank
    */
   async getQuestionCount(subject, difficulty) {
-    const key = subject?.toLowerCase()
-    const pool = QUESTION_BANK[key]
-    return pool ? pool.length : 0
+    const pool = getQuestionPool(subject)
+    return pool.length
   }
 }
 

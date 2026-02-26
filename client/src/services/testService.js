@@ -20,6 +20,11 @@ export const getTestByLeave = async (leaveId) => {
   return data?.data?.test
 }
 
+export const getMyTests = async () => {
+  const { data } = await api.get('/test/my-tests')
+  return data?.data?.tests || []
+}
+
 export const submitTest = async (id, payload) => {
   const { data } = await api.post(`/test/${id}/submit`, payload)
   return data?.data

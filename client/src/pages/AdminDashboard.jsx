@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import { getAllLeaves, deleteLeaveAdmin } from '../services/leaveService'
+import { Link } from 'react-router-dom'
+import { getAllLeaves } from '../services/leaveService'
 import { getAllStudents, getAllAdmins } from '../services/authService'
+import { colors, spacing, borderRadius, typography, transitions, statusColors } from '../utils/designSystem'
 
 const AdminDashboard = () => {
-  const navigate = useNavigate()
   const [leaves, setLeaves] = useState([])
   const [students, setStudents] = useState([])
   const [admins, setAdmins] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [activeTab, setActiveTab] = useState('leaves')
-  const [leaveFilter, setLeaveFilter] = useState('all') // 'all', 'pending', 'assigned', 'approved', 'rejected'
+  const [activeTab, setActiveTab] = useState('overview')
 
   useEffect(() => {
     const fetchData = async () => {
@@ -21,7 +20,6 @@ const AdminDashboard = () => {
           getAllStudents(),
           getAllAdmins()
         ])
-        console.log('Fetched leavesData:', leavesData)
         setLeaves(leavesData)
         setStudents(studentsData)
         setAdmins(adminsData)
@@ -35,691 +33,459 @@ const AdminDashboard = () => {
     fetchData()
   }, [])
 
-  const pending = leaves.filter((l) => l.status === 'pending')
-  const assigned = leaves.filter((l) => l.status === 'test_assigned')
-  const approved = leaves.filter((l) => l.status === 'approved')
-  const rejected = leaves.filter((l) => l.status === 'rejected')
-
-  // Handle stat card clicks
-  const handleStatClick = (statLabel) => {
-    setActiveTab('leaves')
-    switch(statLabel) {
-      case 'Pending Requests':
-        setLeaveFilter('pending')
-        break
-      case 'Tests Created':
-        setLeaveFilter('assigned')
-        break
-      case 'Approved Leaves':
-        setLeaveFilter('approved')
-        break
-      case 'Rejected Leaves':
-        setLeaveFilter('rejected')
-        break
-      case 'Total Students':
-        setActiveTab('students')
-        setLeaveFilter('all')
-        break
-      case 'Total Admins':
-        setActiveTab('admins')
-        setLeaveFilter('all')
-        break
-      default:
-        setLeaveFilter('all')
-    }
-  }
-
-  // Get filtered leaves based on current filter
-  const getFilteredLeaves = () => {
-    switch(leaveFilter) {
-      case 'pending':
-        return pending
-      case 'assigned':
-        return assigned
-      case 'approved':
-        return approved
-      case 'rejected':
-        return rejected
-      default:
-        return [...pending, ...assigned, ...approved, ...rejected]
-    }
-  }
-
-  const filteredLeaves = getFilteredLeaves()
-
-  const handleClearLeave = async (leaveId) => {
-    const confirmed = window.confirm('Clear this leave record? This cannot be undone.')
-    if (!confirmed) return
-
-    try {
-      await deleteLeaveAdmin(leaveId)
-      setLeaves((prev) => prev.filter((leave) => leave._id !== leaveId))
-    } catch (err) {
-      console.error('Error clearing leave:', err)
-      setError(err.message || 'Failed to clear leave')
-    }
-  }
-
-  // Stats configuration
   const stats = [
-    { label: 'Pending Requests', value: pending.length, icon: '⏳', bgColor: '#fff3cd', iconColor: '#ff9800', textColor: '#856404' },
-    { label: 'Tests Created', value: assigned.length, icon: '📝', bgColor: '#cfe2ff', iconColor: '#0d6efd', textColor: '#084298' },
-    { label: 'Approved Leaves', value: approved.length, icon: '✅', bgColor: '#d1e7dd', iconColor: '#198754', textColor: '#0f5132' },
-    { label: 'Rejected Leaves', value: rejected.length, icon: '❌', bgColor: '#f8d7da', iconColor: '#dc3545', textColor: '#842029' },
-    { label: 'Total Students', value: students.length, icon: '👨‍🎓', bgColor: '#e7d6f8', iconColor: '#9c27b0', textColor: '#5e2573' },
-    { label: 'Total Admins', value: admins.length, icon: '👤', bgColor: '#ffe5d9', iconColor: '#ff5722', textColor: '#ad3e17' }
+    { label: 'Total Students', value: students.length, icon: '👥', color: colors.primary },
+    { label: 'Total Admins', value: admins.length, icon: '🔑', color: colors.success },
+    { label: 'Pending Leaves', value: leaves.filter(l => l.status === 'pending').length, icon: '⏳', color: colors.warning }
   ]
 
-  return (
-    <div style={{ background: 'linear-gradient(135deg, #eef2ff 0%, #e0e7ff 35%, #d6dcff 100%)', minHeight: '100vh', padding: '36px 20px' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        
-        {/* Header */}
-        <div style={{
-          marginBottom: '32px',
-          textAlign: 'center',
-          background: 'rgba(255,255,255,0.85)',
-          borderRadius: '18px',
-          padding: '22px 24px',
-          boxShadow: '0 14px 40px rgba(59, 68, 150, 0.18)',
-          border: '1px solid rgba(255,255,255,0.9)',
-          backdropFilter: 'blur(6px)'
-        }}>
-          <h1 style={{ fontSize: '34px', fontWeight: '800', margin: '0 0 8px 0', color: '#1f2937', letterSpacing: '-0.5px' }}>
-            Admin Dashboard
-          </h1>
-          <p style={{ fontSize: '15px', color: '#4b5563', margin: 0, fontWeight: '500' }}>
-            Monitor leave requests, manage users, and track test results
-          </p>
-        </div>
+  const getStatusBadge = (status) => {
+    const badgeStyle = {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: spacing.xs,
+      padding: `${spacing.xs} ${spacing.md}`,
+      borderRadius: borderRadius.full,
+      fontSize: '11px',
+      fontWeight: '600',
+      border: `1.5px solid`,
+    }
 
-        {/* Statistics Cards */}
-        {!loading && (
+    const statusConfig = {
+      pending: { icon: '⏳', ...statusColors.pending },
+      test_assigned: { icon: '📝', ...statusColors.test_assigned },
+      approved: { icon: '✅', ...statusColors.approved },
+      rejected: { icon: '❌', ...statusColors.rejected },
+    }
+
+    const config = statusConfig[status] || statusConfig.pending
+
+    return (
+      <span style={{
+        ...badgeStyle,
+        background: config.bg,
+        color: config.text,
+        borderColor: config.border
+      }}>
+        <span>{config.icon}</span>
+        <span>{status === 'test_assigned' ? 'Test Created' : status.charAt(0).toUpperCase() + status.slice(1)}</span>
+      </span>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div style={{ textAlign: 'center', padding: spacing.xxxl }}>
+        <div style={{ fontSize: '48px', marginBottom: spacing.lg }}>⏳</div>
+        <p style={{ ...typography.body_lg, color: colors.gray_600 }}>Loading admin data...</p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: spacing.xl, background: colors.danger_light, borderRadius: borderRadius.lg, color: colors.danger_dark }}>
+        Error: {error}
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: spacing.xxxl }}>
+        <h1 style={{ ...typography.h1, margin: 0, color: colors.gray_900 }}>Admin Dashboard</h1>
+        <p style={{ ...typography.body_lg, color: colors.gray_600, margin: `${spacing.md} 0 0 0` }}>
+          Manage students and leave requests
+        </p>
+      </div>
+
+      {/* Statistics Cards */}
+      <div style={{ marginBottom: spacing.xxxl, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: spacing.lg }}>
+        {stats.map((stat) => (
+          <div
+            key={stat.label}
+            style={{
+              background: colors.white,
+              border: `1px solid ${colors.gray_200}`,
+              borderRadius: borderRadius.lg,
+              padding: spacing.lg,
+              boxShadow: colors.shadow_sm,
+              transition: `all ${transitions.base}`,
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.boxShadow = colors.shadow_md
+              e.currentTarget.style.borderColor = stat.color
+              e.currentTarget.style.transform = 'translateY(-2px)'
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.boxShadow = colors.shadow_sm
+              e.currentTarget.style.borderColor = colors.gray_200
+              e.currentTarget.style.transform = 'translateY(0)'
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md }}>
+              <span style={{ ...typography.body_sm, color: colors.gray_600, fontWeight: '600', fontSize: '15px', lineHeight: 1.5, letterSpacing: '0.2px' }}>{stat.label}</span>
+              <span style={{ fontSize: '24px', opacity: 0.6 }}>{stat.icon}</span>
+            </div>
+            <div style={{ fontSize: '38px', fontWeight: '800', color: stat.color, lineHeight: 1, letterSpacing: '0.2px' }}>
+              {stat.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div style={{ marginBottom: spacing.xxxl, display: 'flex', gap: spacing.lg, flexWrap: 'wrap' }}>
+        <Link to="/admin/leave-requests" style={{
+          padding: `${spacing.md} ${spacing.lg}`,
+          background: colors.primary,
+          color: colors.white,
+          borderRadius: borderRadius.md,
+          textDecoration: 'none',
+          fontWeight: '600',
+          fontSize: '15px',
+          lineHeight: 1.5,
+          letterSpacing: '0.2px',
+          cursor: 'pointer',
+          transition: `all ${transitions.base}`,
+          border: 'none'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = colors.primary_dark
+          e.currentTarget.style.boxShadow = colors.shadow_md
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = colors.primary
+          e.currentTarget.style.boxShadow = 'none'
+        }}
+        >
+          📋 Pending Leave Requests
+        </Link>
+        <Link to="/admin/students" style={{
+          padding: `${spacing.md} ${spacing.lg}`,
+          background: colors.success,
+          color: colors.white,
+          borderRadius: borderRadius.md,
+          textDecoration: 'none',
+          fontWeight: '600',
+          fontSize: '15px',
+          lineHeight: 1.5,
+          letterSpacing: '0.2px',
+          cursor: 'pointer',
+          transition: `all ${transitions.base}`,
+          border: 'none'
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = colors.success_dark
+          e.currentTarget.style.boxShadow = colors.shadow_md
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = colors.success
+          e.currentTarget.style.boxShadow = 'none'
+        }}
+        >
+          👥 Manage Students
+        </Link>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ marginBottom: spacing.lg, display: 'flex', gap: spacing.lg, borderBottom: `2px solid ${colors.gray_200}` }}>
+        {['overview', 'leaves', 'students', 'admins'].map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: `${spacing.md} ${spacing.lg}`,
+              background: 'transparent',
+              border: 'none',
+              borderBottom: activeTab === tab ? `3px solid ${colors.primary}` : '3px solid transparent',
+              color: activeTab === tab ? colors.primary : colors.gray_600,
+              fontWeight: activeTab === tab ? '700' : '600',
+              fontSize: '16px',
+              lineHeight: 1.5,
+              letterSpacing: '0.2px',
+              cursor: 'pointer',
+              transition: `all ${transitions.base}`,
+            }}
+            onMouseEnter={(e) => {
+              if (activeTab !== tab) e.currentTarget.style.color = colors.gray_900
+            }}
+            onMouseLeave={(e) => {
+              if (activeTab !== tab) e.currentTarget.style.color = colors.gray_600
+            }}
+          >
+            {tab === 'overview' && '📊 Overview'}
+            {tab === 'leaves' && '📋 Leaves'}
+            {tab === 'students' && '👥 Students'}
+            {tab === 'admins' && '🔑 Admins'}
+          </button>
+        ))}
+      </div>
+
+      {/* Content */}
+      <div>
+        {/* Leaves Tab */}
+        {activeTab === 'leaves' && (
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-            gap: '20px',
-            marginBottom: '35px'
+            background: colors.white,
+            border: `1px solid ${colors.gray_200}`,
+            borderRadius: borderRadius.lg,
+            overflow: 'hidden',
+            boxShadow: colors.shadow_sm
           }}>
-            {stats.map((stat, idx) => (
-              <div
-                key={idx}
-                onClick={() => handleStatClick(stat.label)}
-                style={{
-                  background: 'white',
-                  borderRadius: '16px',
-                  padding: '28px 24px',
-                  boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
-                  transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-                  cursor: 'pointer',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-8px) scale(1.02)'
-                  e.currentTarget.style.boxShadow = '0 15px 40px rgba(0,0,0,0.25)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0) scale(1)'
-                  e.currentTarget.style.boxShadow = '0 10px 30px rgba(0,0,0,0.15)'
-                }}
-              >
-                <div style={{
-                  position: 'absolute',
-                  top: '-20px',
-                  right: '-20px',
-                  fontSize: '80px',
-                  opacity: '0.1',
-                  transform: 'rotate(-15deg)'
-                }}>
-                  {stat.icon}
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', marginBottom: '15px' }}>
-                  <div style={{
-                    width: '50px',
-                    height: '50px',
-                    borderRadius: '12px',
-                    background: stat.bgColor,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '26px',
-                    marginRight: '15px'
-                  }}>
-                    {stat.icon}
-                  </div>
-                  <div style={{ fontSize: '40px', fontWeight: '800', color: stat.iconColor }}>
-                    {stat.value}
-                  </div>
-                </div>
-                <div style={{ fontSize: '14px', color: '#6c757d', fontWeight: '600', letterSpacing: '0.5px' }}>
-                  {stat.label}
-                </div>
+            {leaves.length === 0 ? (
+              <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.gray_600 }}>
+                No leave requests found
               </div>
-            ))}
+            ) : (
+              <div>
+                {leaves.map((leave, idx) => (
+                  <div
+                    key={leave._id}
+                    style={{
+                      padding: spacing.lg,
+                      borderBottom: idx !== leaves.length - 1 ? `1px solid ${colors.gray_200}` : 'none',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      transition: `background ${transitions.base}`,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = colors.gray_50
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = colors.white
+                    }}
+                  >
+                    <div>
+                      <div style={{ ...typography.body, fontWeight: '600', color: colors.gray_900, fontSize: '16px', lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                        {(leave.student?.name || leave.student?.username || leave.studentName)} - {leave.startDate?.slice(0, 10)} to {leave.endDate?.slice(0, 10)}
+                      </div>
+                      <p style={{ ...typography.body_sm, color: colors.gray_600, margin: `${spacing.sm} 0 0 0`, fontSize: '15px', lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                        {leave.reason}
+                      </p>
+                    </div>
+                    <div style={{ display: 'flex', gap: spacing.md, alignItems: 'center' }}>
+                      {getStatusBadge(leave.status)}
+                      <Link
+                        to="/admin/leave-requests"
+                        style={{
+                          padding: `${spacing.sm} ${spacing.md}`,
+                          background: colors.primary_light,
+                          color: colors.primary,
+                          borderRadius: borderRadius.md,
+                          textDecoration: 'none',
+                          fontSize: '12px',
+                          fontWeight: '600',
+                          cursor: 'pointer',
+                          transition: `all ${transitions.base}`,
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = colors.primary
+                          e.currentTarget.style.color = colors.white
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = colors.primary_light
+                          e.currentTarget.style.color = colors.primary
+                        }}
+                      >
+                        View
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
-        {/* Quick Actions */}
-        <div style={{
-          background: 'white',
-          borderRadius: '20px',
-          padding: '25px 30px',
-          marginBottom: '30px',
-          boxShadow: '0 10px 30px rgba(0,0,0,0.1)'
-        }}>
-          <h3 style={{ fontSize: '18px', fontWeight: '700', marginTop: 0, marginBottom: '18px', color: '#333' }}>
-            ⚡ Quick Actions
-          </h3>
-          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-            <Link className="btn" to="/admin/add-student" style={{ 
-              textDecoration: 'none', 
-              background: 'linear-gradient(135deg, #6366f1 0%, #7c3aed 100%)', 
-              border: 'none',
-              padding: '10px 18px',
-              fontWeight: '700',
-              borderRadius: '999px',
-              boxShadow: '0 10px 25px rgba(99, 102, 241, 0.25)'
-            }}>
-              ➕ Add Student
-            </Link>
-            <Link className="btn" to="/admin/add-admin" style={{ 
-              textDecoration: 'none',
-              background: 'linear-gradient(135deg, #f97316 0%, #fb7185 100%)',
-              border: 'none',
-              padding: '10px 18px',
-              fontWeight: '700',
-              borderRadius: '999px',
-              boxShadow: '0 10px 25px rgba(249, 115, 22, 0.18)'
-            }}>
-              ➕ Add Admin
-            </Link>
-            <Link className="btn" to="/admin/remove-user" style={{ 
-              textDecoration: 'none',
-              background: 'linear-gradient(135deg, #f43f5e 0%, #fb7185 100%)',
-              border: 'none',
-              padding: '10px 18px',
-              fontWeight: '700',
-              borderRadius: '999px',
-              color: 'white',
-              boxShadow: '0 10px 25px rgba(244, 63, 94, 0.18)'
-            }}>
-              🗑️ Remove User
-            </Link>
-            <Link className="btn" to="/admin/results" style={{ 
-              textDecoration: 'none',
-              background: 'linear-gradient(135deg, #22c55e 0%, #10b981 100%)',
-              border: 'none',
-              padding: '10px 18px',
-              fontWeight: '700',
-              borderRadius: '999px',
-              color: 'white',
-              boxShadow: '0 10px 25px rgba(16, 185, 129, 0.18)'
-            }}>
-              📊 View Results
-            </Link>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div style={{
-          background: 'rgba(255,255,255,0.9)',
-          borderRadius: '20px',
-          padding: '0',
-          boxShadow: '0 22px 50px rgba(79, 70, 229, 0.12)',
-          overflow: 'hidden',
-          border: '1px solid rgba(255,255,255,0.9)',
-          backdropFilter: 'blur(6px)'
-        }}>
-          {/* Tabs */}
-          <div style={{ 
-            display: 'flex', 
-            borderBottom: '3px solid #f0f0f0',
-            background: 'linear-gradient(to bottom, #fafafa, #fff)',
-            padding: '0 30px'
+        {/* Students Tab */}
+        {activeTab === 'students' && (
+          <div style={{
+            background: colors.white,
+            border: `1px solid ${colors.gray_200}`,
+            borderRadius: borderRadius.lg,
+            overflow: 'hidden',
+            boxShadow: colors.shadow_sm
           }}>
-            <button
-              style={{
-                padding: '18px 28px',
-                border: 'none',
-                background: activeTab === 'leaves' ? 'white' : 'transparent',
-                cursor: 'pointer',
-                fontSize: '15px',
-                fontWeight: '600',
-                borderBottom: activeTab === 'leaves' ? '3px solid #667eea' : '3px solid transparent',
-                marginBottom: '-3px',
-                transition: 'all 0.3s',
-                color: activeTab === 'leaves' ? '#667eea' : '#6c757d',
-                borderRadius: '12px 12px 0 0'
-              }}
-              onClick={() => setActiveTab('leaves')}
-            >
-              📋 Leave Management
-            </button>
-            <button
-              style={{
-                padding: '18px 28px',
-                border: 'none',
-                background: activeTab === 'students' ? 'white' : 'transparent',
-                cursor: 'pointer',
-                fontSize: '15px',
-                fontWeight: '600',
-                borderBottom: activeTab === 'students' ? '3px solid #667eea' : '3px solid transparent',
-                marginBottom: '-3px',
-                transition: 'all 0.3s',
-                color: activeTab === 'students' ? '#667eea' : '#6c757d',
-                borderRadius: '12px 12px 0 0'
-              }}
-              onClick={() => setActiveTab('students')}
-            >
-              👨‍🎓 Students ({students.length})
-            </button>
-            <button
-              style={{
-                padding: '18px 28px',
-                border: 'none',
-                background: activeTab === 'admins' ? 'white' : 'transparent',
-                cursor: 'pointer',
-                fontSize: '15px',
-                fontWeight: '600',
-                borderBottom: activeTab === 'admins' ? '3px solid #667eea' : '3px solid transparent',
-                marginBottom: '-3px',
-                transition: 'all 0.3s',
-                color: activeTab === 'admins' ? '#667eea' : '#6c757d',
-                borderRadius: '12px 12px 0 0'
-              }}
-              onClick={() => setActiveTab('admins')}
-            >
-              👤 Admins ({admins.length})
-            </button>
-          </div>
-
-          {/* Tab Content */}
-          <div style={{ padding: '28px' }}>
-            {loading && (
-              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-                <div style={{ 
-                  fontSize: '48px', 
-                  marginBottom: '20px',
-                  animation: 'spin 2s linear infinite',
-                  display: 'inline-block'
-                }}>⚙️</div>
-                <p style={{ color: '#6c757d', fontSize: '16px' }}>Loading data...</p>
+            {students.length === 0 ? (
+              <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.gray_600 }}>
+                No students found
               </div>
-            )}
-            
-            {error && (
-              <div style={{ 
-                background: '#f8d7da', 
-                color: '#842029', 
-                padding: '20px', 
-                borderRadius: '12px',
-                textAlign: 'center',
-                fontWeight: '600'
-              }}>
-                {error}
-              </div>
-            )}
-
-            {/* Leave Management Tab */}
-            {activeTab === 'leaves' && !loading && (
+            ) : (
               <div>
-                {/* Filter buttons */}
-                <div style={{ marginBottom: '24px', display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                  <button
-                    onClick={() => setLeaveFilter('all')}
+                {students.map((student, idx) => (
+                  <div
+                    key={student._id}
                     style={{
-                      padding: '10px 20px',
-                      borderRadius: '20px',
-                      border: leaveFilter === 'all' ? '2px solid #667eea' : '2px solid #e0e0e0',
-                      background: leaveFilter === 'all' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : 'white',
-                      color: leaveFilter === 'all' ? 'white' : '#6c757d',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      transition: 'all 0.3s'
+                      padding: spacing.lg,
+                      borderBottom: idx !== students.length - 1 ? `1px solid ${colors.gray_200}` : 'none',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      transition: `background ${transitions.base}`,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = colors.gray_50
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = colors.white
                     }}
                   >
-                    📋 All ({pending.length + assigned.length + approved.length + rejected.length})
-                  </button>
-                  <button
-                    onClick={() => setLeaveFilter('pending')}
-                    style={{
-                      padding: '10px 20px',
-                      borderRadius: '20px',
-                      border: leaveFilter === 'pending' ? '2px solid #ff9800' : '2px solid #e0e0e0',
-                      background: leaveFilter === 'pending' ? '#ff9800' : 'white',
-                      color: leaveFilter === 'pending' ? 'white' : '#6c757d',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      transition: 'all 0.3s'
-                    }}
-                  >
-                    ⏳ Pending ({pending.length})
-                  </button>
-                  <button
-                    onClick={() => setLeaveFilter('assigned')}
-                    style={{
-                      padding: '10px 20px',
-                      borderRadius: '20px',
-                      border: leaveFilter === 'assigned' ? '2px solid #0d6efd' : '2px solid #e0e0e0',
-                      background: leaveFilter === 'assigned' ? '#0d6efd' : 'white',
-                      color: leaveFilter === 'assigned' ? 'white' : '#6c757d',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      transition: 'all 0.3s'
-                    }}
-                  >
-                    📝 Tests Created ({assigned.length})
-                  </button>
-                  <button
-                    onClick={() => setLeaveFilter('approved')}
-                    style={{
-                      padding: '10px 20px',
-                      borderRadius: '20px',
-                      border: leaveFilter === 'approved' ? '2px solid #198754' : '2px solid #e0e0e0',
-                      background: leaveFilter === 'approved' ? '#198754' : 'white',
-                      color: leaveFilter === 'approved' ? 'white' : '#6c757d',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      transition: 'all 0.3s'
-                    }}
-                  >
-                    ✅ Approved ({approved.length})
-                  </button>
-                  <button
-                    onClick={() => setLeaveFilter('rejected')}
-                    style={{
-                      padding: '10px 20px',
-                      borderRadius: '20px',
-                      border: leaveFilter === 'rejected' ? '2px solid #dc3545' : '2px solid #e0e0e0',
-                      background: leaveFilter === 'rejected' ? '#dc3545' : 'white',
-                      color: leaveFilter === 'rejected' ? 'white' : '#6c757d',
-                      fontWeight: '600',
-                      cursor: 'pointer',
-                      fontSize: '14px',
-                      transition: 'all 0.3s'
-                    }}
-                  >
-                    ❌ Rejected ({rejected.length})
-                  </button>
-                </div>
-
-                <h4 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', fontWeight: '700', color: '#333' }}>
-                  {leaveFilter === 'all' && `📋 All Active Leaves (${filteredLeaves.length})`}
-                  {leaveFilter === 'pending' && `⏳ Pending Leaves (${pending.length})`}
-                  {leaveFilter === 'assigned' && `📝 Test Assigned (${assigned.length})`}
-                  {leaveFilter === 'approved' && `✅ Approved Leaves (${approved.length})`}
-                  {leaveFilter === 'rejected' && `❌ Rejected Leaves (${rejected.length})`}
-                </h4>
-                <div style={{ marginBottom: '40px' }}>
-                  {filteredLeaves.map((leave) => (
-                    <div key={leave._id} style={{
-                      background: leave.status === 'pending' 
-                        ? 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
-                        : leave.status === 'test_assigned'
-                        ? 'linear-gradient(120deg, #f8fafc 0%, #eef2ff 50%, #fdf2f8 100%)'
-                        : leave.status === 'approved'
-                        ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)'
-                        : 'linear-gradient(135deg, #fbc2eb 0%, #a6c1ee 100%)',
-                      borderRadius: '12px',
-                      padding: '20px',
-                      marginBottom: '15px',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.08)',
-                      border: '2px solid rgba(255,255,255,0.8)'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div>
-                          <strong style={{ fontSize: '17px', color: '#333' }}>{leave.student?.name}</strong>
-                          <div style={{ marginTop: '8px', fontSize: '14px', color: '#555' }}>
-                            <span style={{ marginRight: '15px' }}>📝 {leave.reason}</span>
-                          </div>
-                          <div style={{ marginTop: '6px', fontSize: '13px', color: '#666' }}>
-                            📅 {leave.startDate?.slice(0,10)} → {leave.endDate?.slice(0,10)}
-                          </div>
-                          <div style={{ marginTop: '6px', fontSize: '13px' }}>
-                            <span style={{ 
-                              background: leave.status === 'pending' ? '#ff9800' 
-                                : leave.status === 'test_assigned' ? '#0d6efd' 
-                                : leave.status === 'approved' ? '#198754' 
-                                : '#dc3545',
-                              color: 'white', 
-                              padding: '4px 10px', 
-                              borderRadius: '20px', 
-                              fontWeight: '600' 
-                            }}>
-                              {leave.status === 'pending' && '⏳ Pending'}
-                              {leave.status === 'test_assigned' && '📝 Test Assigned'}
-                              {leave.status === 'approved' && '✅ Approved'}
-                              {leave.status === 'rejected' && '❌ Rejected'}
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                          <Link 
-                            className="btn" 
-                            to={`/admin/leaves/${leave._id}`} 
-                            style={{ 
-                              textDecoration: 'none',
-                              background: 'white',
-                              color: leave.status === 'pending' ? '#ff9800' 
-                                : leave.status === 'test_assigned' ? '#0d6efd'
-                                : leave.status === 'approved' ? '#198754'
-                                : '#dc3545',
-                              border: `2px solid ${leave.status === 'pending' ? '#ff9800' 
-                                : leave.status === 'test_assigned' ? '#0d6efd'
-                                : leave.status === 'approved' ? '#198754'
-                                : '#dc3545'}`,
-                              fontWeight: '600',
-                              boxShadow: '0 4px 10px rgba(102, 126, 234, 0.2)'
-                            }}
-                          >
-                            {leave.status === 'pending' ? '👁️ Review' : '👁️ View'}
-                          </Link>
-                          {(leave.status === 'approved' || leave.status === 'rejected') && (
-                            <button
-                              type="button"
-                              onClick={() => handleClearLeave(leave._id)}
-                              style={{
-                                padding: '8px 14px',
-                                borderRadius: '10px',
-                                border: '2px solid #6b7280',
-                                background: 'white',
-                                color: '#374151',
-                                fontWeight: '700',
-                                cursor: 'pointer'
-                              }}
-                            >
-                              🧹 Clear
-                            </button>
-                          )}
-                        </div>
+                    <div>
+                      <div style={{ ...typography.body, fontWeight: '600', color: colors.gray_900, fontSize: '16px', lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                        {student.username || student.name}
                       </div>
-                    </div>
-                  ))}
-                  {filteredLeaves.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '40px', color: '#6c757d' }}>
-                      <div style={{ fontSize: '48px', marginBottom: '15px' }}>
-                        {leaveFilter === 'pending' && '📭'}
-                        {leaveFilter === 'assigned' && '📝'}
-                        {leaveFilter === 'approved' && '✅'}
-                        {leaveFilter === 'rejected' && '❌'}
-                        {leaveFilter === 'all' && '📋'}
-                      </div>
-                      <p>
-                        {leaveFilter === 'pending' && 'No pending leaves at the moment.'}
-                        {leaveFilter === 'assigned' && 'No leaves with tests assigned.'}
-                        {leaveFilter === 'approved' && 'No approved leaves yet.'}
-                        {leaveFilter === 'rejected' && 'No rejected leaves yet.'}
-                        {leaveFilter === 'all' && 'No leaves to display.'}
+                      <p style={{ ...typography.body_sm, color: colors.gray_600, margin: `${spacing.sm} 0 0 0`, fontSize: '15px', lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                        {student.email}
                       </p>
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Students Tab */}
-            {activeTab === 'students' && !loading && (
-              <div>
-                <h4 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', fontWeight: '700', color: '#333' }}>
-                  👨‍🎓 Registered Students ({students.length})
-                </h4>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{
-                    width: '100%',
-                    borderCollapse: 'separate',
-                    borderSpacing: '0',
-                    fontSize: '14px'
-                  }}>
-                    <thead>
-                      <tr style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white', borderRadius: '10px 0 0 0' }}>Name</th>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white' }}>Email</th>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white' }}>Password</th>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white' }}>Department</th>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white' }}>Leave Bal.</th>
-                        <th style={{ padding: '16px', textAlign: 'center', fontWeight: '700', color: 'white', borderRadius: '0 10px 0 0' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {students.map((student, idx) => (
-                        <tr key={student.id} style={{
-                          background: idx % 2 === 0 ? '#f8f9fa' : 'white',
-                          transition: 'all 0.3s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%)'
-                          e.currentTarget.style.transform = 'scale(1.01)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = idx % 2 === 0 ? '#f8f9fa' : 'white'
-                          e.currentTarget.style.transform = 'scale(1)'
-                        }}
-                        >
-                          <td style={{ padding: '16px', fontWeight: '600', color: '#333' }}>{student.name}</td>
-                          <td style={{ padding: '16px', color: '#333', fontSize: '14px' }}>
-                            {student.email}
-                          </td>
-                          <td style={{ padding: '16px', color: '#333', fontSize: '14px' }}>
-                            {student.password}
-                          </td>
-                          <td style={{ padding: '16px', color: '#6c757d' }}>{student.department || '—'}</td>
-                          <td style={{ padding: '16px' }}>
-                            <span style={{
-                              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                              color: 'white',
-                              padding: '6px 12px',
-                              borderRadius: '20px',
-                              fontWeight: '700',
-                              fontSize: '13px'
-                            }}>
-                              {student.leaveBalance}
-                            </span>
-                          </td>
-                          <td style={{ padding: '16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 14px',
-                              borderRadius: '20px',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              background: student.isActive ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                              color: student.isActive ? '#155724' : 'white',
-                              border: student.isActive ? '2px solid #28a745' : '2px solid #dc3545'
-                            }}>
-                              {student.isActive ? '✓ Active' : '✗ Inactive'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {students.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '60px', color: '#6c757d' }}>
-                      <div style={{ fontSize: '64px', marginBottom: '20px' }}>👨‍🎓</div>
-                      <p style={{ fontSize: '18px', fontWeight: '600' }}>No students registered yet.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Admins Tab */}
-            {activeTab === 'admins' && !loading && (
-              <div>
-                <h4 style={{ marginTop: 0, marginBottom: '20px', fontSize: '18px', fontWeight: '700', color: '#333' }}>
-                  👤 Registered Admins ({admins.length})
-                </h4>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{
-                    width: '100%',
-                    borderCollapse: 'separate',
-                    borderSpacing: '0',
-                    fontSize: '14px'
-                  }}>
-                    <thead>
-                      <tr style={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)' }}>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white', borderRadius: '10px 0 0 0' }}>Name</th>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white' }}>Email</th>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white' }}>Password</th>
-                        <th style={{ padding: '16px', textAlign: 'left', fontWeight: '700', color: 'white' }}>Department</th>
-                        <th style={{ padding: '16px', textAlign: 'center', fontWeight: '700', color: 'white', borderRadius: '0 10px 0 0' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {admins.map((admin, idx) => (
-                        <tr key={admin.id} style={{
-                          background: idx % 2 === 0 ? '#f8f9fa' : 'white',
-                          transition: 'all 0.3s'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = 'linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)'
-                          e.currentTarget.style.transform = 'scale(1.01)'
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = idx % 2 === 0 ? '#f8f9fa' : 'white'
-                          e.currentTarget.style.transform = 'scale(1)'
-                        }}
-                        >
-                          <td style={{ padding: '16px', fontWeight: '600', color: '#333' }}>{admin.name}</td>
-                          <td style={{ padding: '16px', color: '#333', fontSize: '14px' }}>
-                            {admin.email}
-                          </td>
-                          <td style={{ padding: '16px', color: '#333', fontSize: '14px' }}>
-                            {admin.password}
-                          </td>
-                          <td style={{ padding: '16px', color: '#6c757d' }}>{admin.department || '—'}</td>
-                          <td style={{ padding: '16px', textAlign: 'center' }}>
-                            <span style={{
-                              padding: '6px 14px',
-                              borderRadius: '20px',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              background: admin.isActive ? 'linear-gradient(135deg, #d4fc79 0%, #96e6a1 100%)' : 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                              color: admin.isActive ? '#155724' : 'white',
-                              border: admin.isActive ? '2px solid #28a745' : '2px solid #dc3545'
-                            }}>
-                              {admin.isActive ? '✓ Active' : '✗ Inactive'}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {admins.length === 0 && (
-                    <div style={{ textAlign: 'center', padding: '60px', color: '#6c757d' }}>
-                      <div style={{ fontSize: '64px', marginBottom: '20px' }}>👤</div>
-                      <p style={{ fontSize: '18px', fontWeight: '600' }}>No admins registered yet.</p>
-                    </div>
-                  )}
-                </div>
+                    <Link
+                      to="/admin/students"
+                      style={{
+                        padding: `${spacing.sm} ${spacing.md}`,
+                        background: colors.primary_light,
+                        color: colors.primary,
+                        borderRadius: borderRadius.md,
+                        textDecoration: 'none',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        transition: `all ${transitions.base}`,
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = colors.primary
+                        e.currentTarget.style.color = colors.white
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = colors.primary_light
+                        e.currentTarget.style.color = colors.primary
+                      }}
+                    >
+                      Manage
+                    </Link>
+                  </div>
+                ))}
               </div>
             )}
           </div>
-        </div>
+        )}
+
+        {/* Admins Tab */}
+        {activeTab === 'admins' && (
+          <div style={{
+            background: colors.white,
+            border: `1px solid ${colors.gray_200}`,
+            borderRadius: borderRadius.lg,
+            overflow: 'hidden',
+            boxShadow: colors.shadow_sm
+          }}>
+            {admins.length === 0 ? (
+              <div style={{ padding: spacing.xl, textAlign: 'center', color: colors.gray_600 }}>
+                No admins found
+              </div>
+            ) : (
+              <div>
+                {admins.map((admin, idx) => (
+                  <div
+                    key={admin._id}
+                    style={{
+                      padding: spacing.lg,
+                      borderBottom: idx !== admins.length - 1 ? `1px solid ${colors.gray_200}` : 'none',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      transition: `background ${transitions.base}`,
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = colors.gray_50
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = colors.white
+                    }}
+                  >
+                    <div>
+                      <div style={{ ...typography.body, fontWeight: '600', color: colors.gray_900, fontSize: '16px', lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                        {admin.username || admin.name}
+                      </div>
+                      <p style={{ ...typography.body_sm, color: colors.gray_600, margin: `${spacing.sm} 0 0 0`, fontSize: '15px', lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                        {admin.email}
+                      </p>
+                    </div>
+                    <span style={{
+                      padding: `${spacing.xs} ${spacing.md}`,
+                      background: colors.primary_light,
+                      color: colors.primary,
+                      borderRadius: borderRadius.full,
+                      fontSize: '12px',
+                      fontWeight: '600'
+                    }}>
+                      👤 Admin
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Overview Tab */}
+        {activeTab === 'overview' && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: spacing.lg }}>
+            {/* Recent Leaves */}
+            <div style={{
+              background: colors.white,
+              border: `1px solid ${colors.gray_200}`,
+              borderRadius: borderRadius.lg,
+              padding: spacing.lg,
+              boxShadow: colors.shadow_sm
+            }}>
+              <h3 style={{ ...typography.h4, margin: `0 0 ${spacing.lg} 0`, color: colors.gray_900, fontSize: '18px', fontWeight: 600, lineHeight: 1.5, letterSpacing: '0.2px' }}>Recent Leaves</h3>
+              {leaves.slice(0, 5).map((leave) => (
+                <div key={leave._id} style={{ marginBottom: spacing.md, paddingBottom: spacing.md, borderBottom: `1px solid ${colors.gray_200}` }}>
+                  <div style={{ ...typography.body_sm, fontWeight: '600', color: colors.gray_900, fontSize: '16px', lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                    {(leave.student?.name || leave.student?.username || leave.studentName)}
+                  </div>
+                  <p style={{ ...typography.body_sm, color: colors.gray_600, margin: `${spacing.xs} 0 0 0`, fontSize: '15px', lineHeight: 1.5, letterSpacing: '0.2px' }}>
+                    {leave.startDate?.slice(0, 10)} to {leave.endDate?.slice(0, 10)}
+                  </p>
+                  {getStatusBadge(leave.status)}
+                </div>
+              ))}
+            </div>
+
+            {/* Summary Stats */}
+            <div style={{
+              background: colors.white,
+              border: `1px solid ${colors.gray_200}`,
+              borderRadius: borderRadius.lg,
+              padding: spacing.lg,
+              boxShadow: colors.shadow_sm
+            }}>
+              <h3 style={{ ...typography.h4, margin: `0 0 ${spacing.lg} 0`, color: colors.gray_900 }}>Summary</h3>
+              <div style={{ marginBottom: spacing.md }}>
+                <p style={{ ...typography.body_sm, color: colors.gray_600, margin: 0, fontSize: '15px', lineHeight: 1.5, letterSpacing: '0.2px' }}>Total Leaves</p>
+                <p style={{ fontSize: '30px', fontWeight: '800', color: colors.primary, margin: `${spacing.sm} 0 0 0`, letterSpacing: '0.2px' }}>
+                  {leaves.length}
+                </p>
+              </div>
+              <div style={{ marginBottom: spacing.md }}>
+                <p style={{ ...typography.body_sm, color: colors.gray_600, margin: 0, fontSize: '15px', lineHeight: 1.5, letterSpacing: '0.2px' }}>Pending Approval</p>
+                <p style={{ fontSize: '30px', fontWeight: '800', color: colors.warning, margin: `${spacing.sm} 0 0 0`, letterSpacing: '0.2px' }}>
+                  {leaves.filter(l => l.status === 'pending').length}
+                </p>
+              </div>
+              <div>
+                <p style={{ ...typography.body_sm, color: colors.gray_600, margin: 0, fontSize: '15px', lineHeight: 1.5, letterSpacing: '0.2px' }}>Active Students</p>
+                <p style={{ fontSize: '30px', fontWeight: '800', color: colors.success, margin: `${spacing.sm} 0 0 0`, letterSpacing: '0.2px' }}>
+                  {students.length}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

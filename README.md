@@ -1,183 +1,109 @@
-# 🎓 Advanced Test-Based Leave Management System
+# Academic Accountability Leave Portal
 
-> **Status:** ✅ **COMPLETE & READY FOR DEMONSTRATION**
-
-A full-stack MERN application that integrates academic evaluation into leave approval process using MCQ and Coding assessments with automated evaluation.
+A full-stack leave management system that combines test-based evaluation for student leave approvals. Admins manage students and approve/reject leave requests based on test performance.
 
 ---
 
-## 🚀 Quick Start
+## Tech Stack
 
-```bash
-# 1. Start Backend (Terminal 1)
-cd server
-npm install
-npm run dev
-
-# 2. Start Frontend (Terminal 2)
-cd client
-npm install
-npm run dev
-
-# 3. Seed Database (First time only - Terminal 3)
-cd server
-node seed.js
-```
-
-**Access:** http://localhost:5173
-
-**Default Accounts:**
-- Admin: `admin@example.com` / `admin123`
-- Student: `student@example.com` / `student123`
+**Backend:** Node.js, Express, MongoDB, JWT  
+**Frontend:** React, Vite, React Router, Context API  
+**Database:** MongoDB with Mongoose  
+**Authentication:** JWT + bcryptjs
 
 ---
 
-## 📚 Documentation
-
-| File | Description |
-|------|-------------|
-| [QUICK_START.md](QUICK_START.md) | Step-by-step setup guide |
-| [IMPLEMENTATION_COMPLETE.md](IMPLEMENTATION_COMPLETE.md) | Complete feature list |
-| [FINAL_SUMMARY.md](FINAL_SUMMARY.md) | Project completion summary |
-| [CHANGES_MADE.md](CHANGES_MADE.md) | Detailed changes log |
-
----
-
-## ✨ Key Features
-
-✅ **Dual Question Types:** MCQ + Coding questions in same test
-✅ **Automatic Evaluation:** Simple string comparison logic
-✅ **Auto Leave Status:** Approved/Rejected based on test result
-✅ **Role-Based Access:** Admin and Student with different permissions
-✅ **JWT Authentication:** Secure token-based auth
-✅ **Clean UI:** Minimal, white background, card-based design
-✅ **Simple Code:** No complex validations, beginner-friendly
-
----
-
-## 🎯 Complete Workflow
+## Project Structure
 
 ```
-Admin creates student → Student applies for leave → Admin creates test
-→ Student takes test → System evaluates → Leave approved/rejected
-```
-
----
-
-## 🛠️ Tech Stack
-
-**Backend:**
-- Node.js + Express
-- MongoDB + Mongoose
-- JWT Authentication
-- bcryptjs for password hashing
-
-**Frontend:**
-- React + Vite
-- React Router for navigation
-- Context API for state management
-- Clean CSS (no frameworks)
-
----
-
-## 📦 Project Structure
-
-```
-├── server/              # Backend
-│   ├── src/
-│   │   ├── models/      # Database schemas
-│   │   ├── controllers/ # Business logic
-│   │   ├── routes/      # API endpoints
-│   │   ├── services/    # Evaluation service
-│   │   └── utils/       # Helper functions
-│   └── seed.js          # Database seeding
+server/
+├── src/
+│   ├── models/      # User, Leave, Test, TestResult schemas
+│   ├── controllers/ # Authentication, Leave, Test logic
+│   ├── routes/      # API endpoints
+│   ├── services/    # Test evaluation service
+│   └── middleware/  # Auth & error handling
 │
-├── client/              # Frontend
-│   └── src/
-│       ├── pages/       # UI pages
-│       ├── services/    # API calls
-│       ├── context/     # Auth context
-│       └── styles/      # CSS
-│
-└── Documentation files  # Setup and usage guides
+client/
+├── src/
+│   ├── pages/       # Dashboard, ApplyLeave, TakeTest, etc.
+│   ├── services/    # API service calls
+│   ├── context/     # Authentication context
+│   └── styles/      # Global CSS & typography
 ```
 
 ---
 
-## 🎓 Academic Project Requirements
+## Main Features
 
-✅ **Problem Statement:** Integrate academic evaluation into leave approval
-✅ **Test Types:** MCQ + Coding questions
-✅ **Evaluation:** Automated, score-based
-✅ **User Roles:** Admin (create, review) + Student (apply, take test)
-✅ **Simple Design:** No over-engineering
-✅ **Clear Code:** Easy to understand and debug
-
----
-
-## 📝 API Endpoints
-
-### Authentication
-- `POST /api/auth/login` - Login
-- `POST /api/auth/create-student` - Create student (Admin)
-- `POST /api/auth/create-admin` - Create admin (Admin)
-
-### Leave Management
-- `POST /api/leave` - Apply leave (Student)
-- `GET /api/leave` - Get all leaves (Admin)
-- `GET /api/leave/my-leaves` - Get my leaves (Student)
-
-### Test Management
-- `POST /api/test` - Create test (Admin)
-- `GET /api/test/:id` - Get test
-- `POST /api/test/:id/submit` - Submit test (Student)
-- `GET /api/test/:id/result` - Get result
+- **Admin Dashboard:** View students, manage admins, review leave requests, track test assignments
+- **Student Portal:** Apply for leave, take assigned tests, view results and leave status
+- **Leave Management:** Submit leave requests with dates and reasons
+- **Test System:** Admin creates tests with MCQ and coding questions; students take tests and get instant evaluation
+- **Automated Evaluation:** Tests evaluated automatically; leave status updates based on test results
+- **Role-Based Access:** Separate interfaces for admins and students
+- **Authentication:** Secure JWT-based login with password hashing
 
 ---
 
-## 🧪 Example Test
+## How to Run
 
-**Admin Creates:**
-- MCQ: "What is 2+2?" → Options: [2,3,4,5] → Correct: 2 → Marks: 1
-- Coding: "Print Hello" → Expected: "Hello" → Marks: 1
-- Pass Marks: 1 (need at least 1/2)
+1. **Install Dependencies (Backend)**
+   ```bash
+   cd server
+   npm install
+   ```
 
-**Student Submits:**
-- MCQ: Selects 4 ✓ → +1 mark
-- Coding: Types "Hello" ✓ → +1 mark
-- **Total: 2/2 → PASSED → Leave APPROVED** 🎉
+2. **Install Dependencies (Frontend)**
+   ```bash
+   cd client
+   npm install
+   ```
+
+3. **Start Backend**
+   ```bash
+   cd server
+   npm run dev
+   ```
+
+4. **Start Frontend** (new terminal)
+   ```bash
+   cd client
+   npm run dev
+   ```
+
+5. **Seed Database** (first time only)
+   ```bash
+   cd server
+   node seed.js
+   ```
+
+6. **Access Application**
+   - Frontend: http://localhost:5173
+   - Backend: http://localhost:5000
+   - Default Admin: `admin@example.com` / `admin123`
+   - Default Student: `student@example.com` / `student123`
 
 ---
 
-## 🎉 Ready for Evaluation
+## API Summary
 
-This project is:
-- ✅ Fully functional end-to-end
-- ✅ Simple and easy to understand
-- ✅ Well-documented
-- ✅ Ready for live demonstration
-- ✅ Perfect for college project submission
-
----
-
-## 📞 Support
-
-For any issues:
-1. Check [QUICK_START.md](QUICK_START.md) for setup instructions
-2. Review [CHANGES_MADE.md](CHANGES_MADE.md) for what was implemented
-3. See [FINAL_SUMMARY.md](FINAL_SUMMARY.md) for complete feature list
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/api/auth/login` | POST | Student/Admin login |
+| `/api/auth/register` | POST | Create new student |
+| `/api/leaves` | GET/POST | Get all leaves / Create leave |
+| `/api/leaves/:id` | PATCH | Update leave status |
+| `/api/tests` | GET/POST | Get/Create tests |
+| `/api/tests/:id/submit` | POST | Submit test answers |
+| `/api/results` | GET | Get test results |
 
 ---
 
-## 🏆 Project Status
+## Known Limitations
 
-**✅ 100% COMPLETE**
-
-All requirements from the problem statement have been successfully implemented with:
-- Simple, readable code
-- No complex validations
-- Clear error messages
-- Beginner-friendly architecture
-- Ready for academic evaluation
-
-**🚀 Ready to run, test, and demonstrate!**
+- String comparison only for coding question evaluation (no advanced parsing)
+- No complex leave policies (simple approval/rejection based on test pass/fail)
+- Single timezone support
+- No real-time notifications
+- Limited file upload capabilities
